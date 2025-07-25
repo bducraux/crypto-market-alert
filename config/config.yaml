@@ -143,6 +143,24 @@ coins:
     price_below: 0.4
     rsi_oversold: 25
     rsi_overbought: 75
+- shibarium:
+  name: SHIB
+  coingecko_id: shiba-inu
+  avg_price: 0.00001  # Preço médio de compra
+  alerts:
+    price_above: 0.00002
+    price_below: 0.000005
+    rsi_oversold: 25
+    rsi_overbought: 75
+- stacks:
+  name: STX
+  coingecko_id: blockstack
+  avg_price: 2.796  # Preço médio de compra
+  alerts:
+    price_above: 4
+    price_below: 1.5
+    rsi_oversold: 25
+    rsi_overbought: 75
 indicators:
   rsi_period: 14
   ma_short: 50
