@@ -115,11 +115,38 @@ async def test_connections(alert_system):
         
         # Test CoinGecko API
         print("🌐 Testing CoinGecko API...")
-        btc_price = alert_system.data_fetcher.get_coin_price('bitcoin')
-        if btc_price:
+        test_data = alert_system.data_fetcher.get_coin_market_data_batch(['bitcoin'])
+        if test_data and 'bitcoin' in test_data:
+            btc_price = test_data['bitcoin'].get('usd', 0)
             print(f"✅ CoinGecko API working (BTC: ${btc_price:,.2f})")
         else:
             print("❌ CoinGecko API failed")
+            return False
+        
+        # Test Binance API
+        print("🔶 Testing Binance API...")
+        binance_btc = alert_system.data_fetcher.get_binance_price('BTCUSDT')
+        if binance_btc and 'price' in binance_btc:
+            binance_price = float(binance_btc['price'])
+            print(f"✅ Binance API working (BTC: ${binance_price:,.2f})")
+        else:
+            print("❌ Binance API failed")
+            return False
+        
+        # Test overall data fetcher functionality
+        print("🔄 Testing hybrid data fetcher...")
+        connection_status = alert_system.data_fetcher.test_connection()
+        binance_ok = connection_status.get('binance', False)
+        coingecko_ok = connection_status.get('coingecko', False)
+        
+        if binance_ok and coingecko_ok:
+            print("✅ Hybrid data fetcher working (Both APIs)")
+        elif coingecko_ok:
+            print("⚠️ Hybrid data fetcher working (CoinGecko only)")
+        elif binance_ok:
+            print("⚠️ Hybrid data fetcher working (Binance only)")
+        else:
+            print("❌ Hybrid data fetcher failed")
             return False
         
         return True
