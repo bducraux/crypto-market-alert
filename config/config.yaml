@@ -143,22 +143,13 @@ coins:
     price_below: 0.4
     rsi_oversold: 25
     rsi_overbought: 75
-- shibarium:
+- symbol: shiba-inu
   name: SHIB
   coingecko_id: shiba-inu
   avg_price: 0.00001  # Preço médio de compra
   alerts:
     price_above: 0.00002
     price_below: 0.000005
-    rsi_oversold: 25
-    rsi_overbought: 75
-- stacks:
-  name: STX
-  coingecko_id: blockstack
-  avg_price: 2.796  # Preço médio de compra
-  alerts:
-    price_above: 4
-    price_below: 1.5
     rsi_oversold: 25
     rsi_overbought: 75
 indicators:
@@ -214,15 +205,69 @@ professional_alerts:
     btc_dominance_threshold: 45
     eth_btc_ratio_threshold: 0.07
 
-# Configurações para Advisor Estratégico (Goal: 1 BTC + 10 ETH)
+# Strategic Alerts - NEW CONSOLIDATED FORMAT
 strategic_alerts:
   enabled: true
-  send_daily_report: true     # Enviar relatório diário
-  min_opportunity_score: 60   # Score mínimo para alertas de oportunidade
-  eth_btc_swap_confidence: "MEDIUM"  # Confiança mínima para sugerir swaps BTC/ETH
-  altcoin_exit_threshold: 70  # Score mínimo para sugerir saída de altcoins
-  consolidate_alerts: true    # NOVA: Consolidar múltiplos alertas em um só (remove outras mensagens)
-  priority_focus: "BTC_ETH_MAXIMIZATION"  # Foco principal da estratégia
+  consolidate_alerts: true     # 🎯 Mensagem única consolidada
+  min_opportunity_score: 60    # Score mínimo para alertas
+  priority_focus: "BTC_ETH_MAXIMIZATION"
+
+# 🆕 New Technical Indicators Configuration
+indicators:
+  rsi_period: 14                        # RSI padrão
+  ma_short: 50                          # Média móvel curta
+  ma_long: 200                          # Média móvel longa  
+  macd_fast: 12                         # MACD rápido
+  macd_slow: 26                         # MACD lento
+  macd_signal: 9                        # Linha de sinal MACD
+  
+  # 🆕 Pi Cycle Top Indicator (primarily for BTC cycle analysis)
+  enable_pi_cycle: true                 # Enable Pi Cycle Top indicator
+  pi_cycle_short: 111                   # Short MA period for Pi Cycle
+  pi_cycle_long: 350                    # Long MA period for Pi Cycle
+  
+  # 🆕 3-Line RCI (Rank Correlation Index)
+  enable_rci: true                      # Enable 3-Line RCI
+  rci_periods: [9, 26, 52]             # Short, medium, long-term periods
+  rci_overbought: 80                    # RCI overbought level
+  rci_oversold: -80                     # RCI oversold level
+
+# 🆕 Partial Exit Strategy Configuration
+partial_exit:
+  enabled: true                         # Enable partial exit recommendations
+  risk_thresholds:
+    low_risk: 60                        # 10% sell threshold
+    medium_risk: 75                     # 25% sell threshold
+    high_risk: 85                       # 50% sell threshold
+  
+  # Risk factors weights (total should be around 100)
+  risk_weights:
+    pi_cycle_signal: 30                 # Pi Cycle Top triggered
+    pi_cycle_approach: 15               # Pi Cycle approaching
+    rsi_extreme: 25                     # RSI > 80
+    rsi_overbought: 15                  # RSI > 70
+    rci_exhaustion: 20                  # RCI signals trend exhaustion
+    rci_weakness: 10                    # RCI shows weakening
+    altseason_peak: 15                  # Peak altseason levels
+    fear_greed_extreme: 20              # Fear & Greed > 80
+    fear_greed_high: 10                 # Fear & Greed > 70
+
+# Enhanced Altseason Detection
+altseason_detection:
+  enhanced_mode: true                   # Use enhanced detection with ETH/BTC ratio
+  btc_dominance_thresholds:
+    extreme_low: 40                     # Extreme altseason
+    low: 45                             # Active altseason
+    high: 55                            # BTC favored
+    extreme_high: 60                    # BTC season
+    
+  eth_btc_ratio_thresholds:
+    very_strong_eth: 0.08              # Very strong altseason signal
+    strong_eth: 0.06                   # Moderate altseason signal  
+    weak_eth: 0.03                     # ETH weakness signal
+    
+  momentum_analysis: true               # Cross-asset momentum analysis
+  leadership_analysis: true             # ETH leadership vs BTC analysis
     
   # Indicadores de Topo de Ciclo (Nível 1 - Gratuito)
   cycle_top_detection:
