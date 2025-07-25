@@ -186,11 +186,14 @@ sudo journalctl -u crypto-alert -f  # Monitorar logs
 
 ## 📚 Documentação
 
-- `README.md` - Overview e quick start (este arquivo)
-- `CONTRIBUTING.md` - Guia para contribuidores
-- `COMO_INTERPRETAR_ALERTAS.md` - Como interpretar a mensagem consolidada
-- `ADVANCED.md` - Configurações avançadas
-- `DASHBOARD_GUIDE.md` - Guia do dashboard estratégico
+📋 **[Índice Completo da Documentação](docs/DOC_INDEX.md)** - Navegação completa
+
+### 🚀 Quick Access
+- **[Como Interpretar os Alertas](docs/COMO_INTERPRETAR_ALERTAS.md)** - Guia da mensagem consolidada
+- **[Dashboard Guide](docs/DASHBOARD_GUIDE.md)** - Interpretação do dashboard estratégico  
+- **[Configurações Avançadas](docs/ADVANCED.md)** - Cenários específicos e configurações
+- **[Resumo Técnico](docs/PROJECT_SUMMARY.md)** - Arquitetura e implementações
+- **[Guia de Contribuição](docs/CONTRIBUTING.md)** - Como contribuir para o projeto
 
 ## 🔧 Estrutura Técnica
 
