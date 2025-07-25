@@ -90,10 +90,95 @@ indicators:
   macd_slow: 26                         # MACD lento
   macd_signal: 9                        # Linha de sinal MACD
   
+  # 🆕 Pi Cycle Top Indicator (Bitcoin Cycle Analysis)
+  enable_pi_cycle: true                 # Ativar indicador Pi Cycle Top
+  pi_cycle_short: 111                   # Média móvel curta (111 dias)
+  pi_cycle_long: 350                    # Média móvel longa (350 dias)
+  
+  # 🆕 3-Line RCI (Rank Correlation Index)
+  enable_rci: true                      # Ativar RCI 3-Line
+  rci_periods: [9, 26, 52]             # Períodos: curto, médio, longo prazo
+  rci_overbought: 80                    # Nível de sobrecompra
+  rci_oversold: -80                     # Nível de sobrevenda
+
+# 🆕 Estratégia de Saída Parcial
+partial_exit:
+  enabled: true                         # Ativar recomendações de saída parcial
+  risk_thresholds:
+    low_risk: 60                        # 10% de venda - risco moderado
+    medium_risk: 75                     # 25% de venda - alto risco
+    high_risk: 85                       # 50% de venda - risco crítico
+  
+  # Pesos dos fatores de risco (total ~100)
+  risk_weights:
+    pi_cycle_signal: 30                 # Pi Cycle Top ativado
+    pi_cycle_approach: 15               # Pi Cycle aproximando
+    rsi_extreme: 25                     # RSI > 80
+    rci_exhaustion: 20                  # RCI sinaliza exaustão
+    altseason_peak: 15                  # Altseason no pico
+    fear_greed_extreme: 20              # Fear & Greed > 80
+
+# 🆕 Detecção Avançada de Altseason
+altseason_detection:
+  enhanced_mode: true                   # Usar detecção avançada
+  btc_dominance_thresholds:
+    extreme_low: 40                     # Altseason extrema
+    low: 45                             # Altseason ativa
+    high: 55                            # BTC favorecido
+    extreme_high: 60                    # BTC season
+    
+  eth_btc_ratio_thresholds:
+    very_strong_eth: 0.08              # ETH muito forte vs BTC
+    strong_eth: 0.06                   # ETH forte vs BTC
+    weak_eth: 0.03                     # ETH fraco vs BTC
+    
+  momentum_analysis: true               # Análise de momentum cruzado
+  leadership_analysis: true             # Análise de liderança ETH vs BTC
+  
 # Configuração adicional para análise de ciclo
 cycle_analysis:
   lookback_days: 365                    # Análise de 1 ano
   risk_threshold: 60                    # Threshold para alto risco
+```
+
+### 🆕 Exemplos de Configuração por Cenário
+
+#### Configuração Conservadora (Foco em Preservação)
+```yaml
+partial_exit:
+  risk_thresholds:
+    low_risk: 50                        # Venda mais cedo
+    medium_risk: 65                     
+    high_risk: 80                       
+    
+indicators:
+  enable_pi_cycle: true                 # Essencial para topos
+  enable_rci: true                      # Detecção de reversão
+```
+
+#### Configuração Agressiva (Máximo Lucro)
+```yaml
+partial_exit:
+  risk_thresholds:
+    low_risk: 70                        # Aguarda mais risco
+    medium_risk: 80                     
+    high_risk: 90                       
+    
+altseason_detection:
+  btc_dominance_thresholds:
+    extreme_low: 35                     # Permite altseason mais extrema
+```
+
+#### Configuração para BTC/ETH Focus
+```yaml
+strategic_alerts:
+  priority_focus: "BTC_ETH_MAXIMIZATION"
+
+altseason_detection:
+  eth_btc_ratio_thresholds:
+    very_strong_eth: 0.09              # Mais tolerante ao ETH forte
+    strong_eth: 0.07                   
+    weak_eth: 0.025                    # Mais sensível ao ETH fraco
 ```
 
 ## ⚙️ Configurações de Sistema

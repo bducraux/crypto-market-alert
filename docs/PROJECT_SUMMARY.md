@@ -2,7 +2,7 @@
 
 ## 📖 Overview
 
-Sistema inteligente de monitoramento do mercado cripto com **Strategic Advisor** focado no objetivo específico de **1 BTC + 10 ETH**. O sistema foi completamente reformulado para entregar análises consolidadas e acionáveis.
+Sistema inteligente de monitoramento do mercado cripto com **Strategic Advisor** focado no objetivo específico de **1 BTC + 10 ETH**. O sistema foi completamente reformulado para entregar análises consolidadas e acionáveis, agora com **indicadores técnicos avançados** e **estratégia de saída parcial**.
 
 ## 🚀 Principais Implementações
 
@@ -26,7 +26,27 @@ Sistema inteligente de monitoramento do mercado cripto com **Strategic Advisor**
 - **Solução**: Análise baseada em preços médios reais de compra
 - **Resultado**: Mostra precisamente se pode alcançar a meta vendendo altcoins
 
-## 🏗️ Arquitetura Técnica
+### 🆕 **Pi Cycle Top Indicator**
+- **Funcionalidade**: Detecta topos históricos do Bitcoin usando médias móveis 111 e 350 dias
+- **Algoritmo**: Quando MA111 cruza acima de 2x MA350 = topo histórico
+- **Resultado**: Antecipação precisa de topos de ciclo para maximizar saídas
+
+### 🆕 **3-Line RCI (Rank Correlation Index)**
+- **Funcionalidade**: Análise de correlação entre preço e tempo em 3 períodos
+- **Períodos**: Curto (9), médio (26) e longo prazo (52)
+- **Resultado**: Detecção de exaustão de tendência e sinais de reversão
+
+### 🆕 **Partial Exit Strategy**
+- **Funcionalidade**: Recomendações automáticas de venda parcial baseadas em risco
+- **Níveis**: 10% (risco 60+), 25% (risco 75+), 50% (risco 85+)
+- **Resultado**: Protege lucros sem sair completamente das posições
+
+### � **Enhanced Altseason Detection**
+- **Funcionalidade**: Detecção refinada combinando BTC dominance + ETH/BTC ratio
+- **Análise**: Momentum cruzado BTC/ETH + liderança do ETH
+- **Resultado**: Timing preciso para entradas/saídas de altcoins
+
+## �🏗️ Arquitetura Técnica
 
 ```
 HybridDataFetcher ──► StrategicAdvisor ──► AlertStrategy ──► Telegram
@@ -34,20 +54,33 @@ HybridDataFetcher ──► StrategicAdvisor ──► AlertStrategy ──► T
    Binance API          Goal Analysis     Consolidated      
    CoinGecko API        (1 BTC + 10 ETH)  Message          
    Alternative.me       Portfolio Calc    Single Alert     
+       │                     │                  │
+   🆕 Enhanced         🆕 Pi Cycle Top   🆕 Partial Exit
+   Data Pipeline       🆕 RCI 3-Line     Recommendations
 ```
 
 ## 🎯 Features Principais
 
 ### **🔥 Strategic Analysis Engine**
-- Análise de risco de topo de ciclo (0-100)
+- Análise de risco de topo de ciclo (0-100) **ENHANCED**
 - Detecta fases do mercado (NEUTRO, BULLISH, BEARISH, CAPITULAÇÃO)
-- Calcula oportunidades de altseason
+- Calcula oportunidades de altseason **com ETH/BTC ratio**
 - Analisa ratio BTC/ETH para otimização
+- **🆕 Pi Cycle Top integration** para detecção de topos históricos
+- **🆕 RCI 3-Line analysis** para sinais de reversão
 
 ### **💰 Portfolio Management**
 - Calcula valor atual das altcoins vs meta
 - Mostra percentual de alcance do objetivo
 - Recomendações específicas por altcoin
+- **🆕 Partial exit recommendations** baseadas em risco calculado
+
+### **📊 Technical Indicators (ENHANCED)**
+- RSI, MACD, Moving Averages (existentes)
+- **🆕 Pi Cycle Top Indicator** (111-day vs 2x 350-day MA)
+- **🆕 3-Line RCI** (9, 26, 52 periods)
+- **🆕 Enhanced crossover detection**
+- **🆕 Trend exhaustion analysis**
 - Baseado em preços médios reais de compra
 
 ### **📊 Market Intelligence**

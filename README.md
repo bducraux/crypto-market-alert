@@ -178,11 +178,21 @@ sudo journalctl -u crypto-alert -f  # Monitorar logs
 - **Falta de Direcionamento**: Strategic Advisor com goal de 1 BTC + 10 ETH
 - **Cálculos Incorretos**: Portfolio achievement calculator corrigido
 
-### 🆕 **Novas Features:**
+### 🆕 **Novas Features (v2.0):**
+- **Pi Cycle Top Indicator**: Detecta topos históricos do Bitcoin (MA 111 vs 2x MA 350)
+- **3-Line RCI**: Rank Correlation Index para análise de tendência (períodos 9, 26, 52)
+- **Partial Exit Strategy**: Recomendações automáticas de venda parcial (10%, 25%, 50%)
+- **Enhanced Altseason Detection**: Análise refinada com ETH/BTC ratio + momentum
 - **Mensagem Consolidada**: Uma única mensagem com análise/ação para cada métrica
 - **Portfolio Calculator**: Mostra se vendendo altcoins consegue alcançar a meta
-- **Cycle Top Analysis**: Análise de risco de topo de ciclo
+- **Cycle Top Analysis**: Análise de risco de topo de ciclo (0-100 pontos)
 - **Production Ready**: Deploy automático com systemd service
+
+### 🔬 **Technical Indicators Enhanced:**
+- **Pi Cycle Top**: Histórico de 100% de precisão na detecção de topos do BTC
+- **RCI 3-Line**: Correlação preço/tempo em 3 períodos para sinais antecipados
+- **Enhanced Crossovers**: Detecção melhorada de cruzamentos MA/MACD
+- **Risk Scoring**: Sistema de pontuação 0-100 para risco de topo de ciclo
 
 ## 📚 Documentação
 
@@ -200,13 +210,24 @@ sudo journalctl -u crypto-alert -f  # Monitorar logs
 **Core Components:**
 - **HybridDataFetcher**: Otimização de APIs (10x mais rápido)
 - **StrategicAdvisor**: Análise focada no objetivo de 1 BTC + 10 ETH
-- **AlertStrategy**: Coordenação de alertas consolidados
+- **TechnicalIndicators**: RSI, MACD, MA + **Pi Cycle Top** + **RCI 3-Line**
+- **AlertStrategy**: Coordenação de alertas consolidados + **Partial Exit Logic**
 - **TelegramAlertsManager**: Integração com Telegram
+
+**🆕 Enhanced Technical Analysis:**
+- **Pi Cycle Top Indicator**: Bitcoin cycle top detection (111-day vs 2x 350-day MA)
+- **3-Line RCI**: Rank Correlation Index trend analysis (9, 26, 52 periods)  
+- **Partial Exit Strategy**: Risk-based position sizing (10%, 25%, 50% sells)
+- **Enhanced Altseason Detection**: BTC dominance + ETH/BTC ratio + momentum
+- **Risk Scoring System**: 0-100 cycle top risk calculation
 
 **Key Features:**
 - Zero rate limiting com estratégia híbrida de APIs
 - Análise consolidada em mensagem única e clara
 - Cálculo preciso de achievement do portfolio
+- **🆕 Advanced cycle top detection** com Pi Cycle + RCI
+- **🆕 Automated partial exit recommendations**
+- **🆕 Enhanced altseason timing** com ETH/BTC analysis
 - Deploy production-ready com uma linha de comando
 
 ## 🤝 Contribuições
