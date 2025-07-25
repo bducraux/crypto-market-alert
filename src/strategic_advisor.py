@@ -210,18 +210,24 @@ class StrategicAdvisor:
         }
     
     def _analyze_altseason(self, data: Dict, market_metrics: Dict) -> Dict:
-        """Analyze if we're in altseason (time to exit alts to BTC/ETH)"""
+        """Analyze if we're in altseason with enhanced detection"""
         try:
             btc_dominance = market_metrics.get('btc_dominance', 50)
+            eth_btc_ratio = market_metrics.get('eth_btc_ratio', 0.035)
             
-            # Get BTC data for trend analysis
+            # Get BTC and ETH data for trend analysis
             btc_data = data.get('bitcoin', {})
+            eth_data = data.get('ethereum', {})
             btc_price = btc_data.get('usd', 0)
+            eth_price = eth_data.get('usd', 0)
             
-            # Calculate BTC technical indicators if historical data available
+            # Calculate technical indicators for both BTC and ETH
             btc_rsi = 50
+            eth_rsi = 50
             btc_ma_50 = btc_price
+            eth_ma_50 = eth_price
             
+            # BTC indicators
             btc_historical = btc_data.get('historical')
             if btc_historical is not None and not btc_historical.empty:
                 try:
@@ -233,61 +239,120 @@ class StrategicAdvisor:
                 except Exception as e:
                     logger.debug(f"Failed to calculate BTC indicators for altseason: {e}")
             
+            # ETH indicators
+            eth_historical = eth_data.get('historical')
+            if eth_historical is not None and not eth_historical.empty:
+                try:
+                    eth_indicators = self.indicators.get_latest_indicator_values(
+                        eth_historical, {'rsi_period': 14, 'ma_short': 50}
+                    )
+                    eth_rsi = eth_indicators.get('rsi', 50)
+                    eth_ma_50 = eth_indicators.get('ma_short', eth_price)
+                except Exception as e:
+                    logger.debug(f"Failed to calculate ETH indicators for altseason: {e}")
+            
             altseason_indicators = []
             altseason_score = 0
             phase = "ACCUMULATION"
             
-            # BTC dominance analysis
-            if btc_dominance and btc_dominance < 45:
-                altseason_indicators.append("BTC dominance low - altseason active")
-                altseason_score += 30
-                phase = "ALTSEASON"
-            elif btc_dominance and btc_dominance > 60:
-                altseason_indicators.append("BTC dominance high - BTC season")
-                altseason_score -= 20
-                phase = "BTC_SEASON"
+            # Enhanced BTC dominance analysis with trend
+            if btc_dominance:
+                if btc_dominance < 40:
+                    altseason_indicators.append(f"BTC dominance very low ({btc_dominance:.1f}%) - Peak altseason")
+                    altseason_score += 40
+                    phase = "PEAK_ALTSEASON"
+                elif btc_dominance < 45:
+                    altseason_indicators.append(f"BTC dominance low ({btc_dominance:.1f}%) - Altseason active")
+                    altseason_score += 30
+                    phase = "ALTSEASON"
+                elif btc_dominance > 60:
+                    altseason_indicators.append(f"BTC dominance high ({btc_dominance:.1f}%) - BTC season")
+                    altseason_score -= 20
+                    phase = "BTC_SEASON"
+                elif btc_dominance > 55:
+                    altseason_indicators.append(f"BTC dominance elevated ({btc_dominance:.1f}%) - BTC favored")
+                    altseason_score -= 10
             
-            # BTC technical condition
-            if btc_rsi > 70:
-                altseason_indicators.append("BTC overbought - alts may pump")
+            # ETH/BTC ratio analysis (key altseason indicator)
+            if eth_btc_ratio:
+                if eth_btc_ratio > 0.08:  # Very strong ETH
+                    altseason_indicators.append(f"ETH/BTC ratio very high ({eth_btc_ratio:.4f}) - Strong altseason")
+                    altseason_score += 25
+                elif eth_btc_ratio > 0.06:  # Strong ETH
+                    altseason_indicators.append(f"ETH/BTC ratio elevated ({eth_btc_ratio:.4f}) - Moderate altseason")
+                    altseason_score += 15
+                elif eth_btc_ratio < 0.03:  # Weak ETH
+                    altseason_indicators.append(f"ETH/BTC ratio low ({eth_btc_ratio:.4f}) - ETH weakness")
+                    altseason_score -= 15
+            
+            # Cross-asset momentum analysis
+            if btc_rsi > 70 and eth_rsi > 70:
+                altseason_indicators.append("Both BTC and ETH overbought - Potential altcoin rotation")
                 altseason_score += 20
+            elif btc_rsi > 75:
+                altseason_indicators.append(f"BTC extremely overbought (RSI {btc_rsi:.1f}) - Alts may benefit")
+                altseason_score += 25
             elif btc_rsi < 30:
-                altseason_indicators.append("BTC oversold - money flowing to BTC")
+                altseason_indicators.append(f"BTC oversold (RSI {btc_rsi:.1f}) - Money flowing to BTC")
                 altseason_score -= 15
             
-            # BTC trend analysis
-            if btc_price > btc_ma_50 * 1.1:
-                altseason_indicators.append("BTC strong uptrend")
-                if btc_dominance and btc_dominance < 50:
-                    altseason_score += 15  # BTC up + low dominance = altseason
-                else:
-                    altseason_score -= 10  # BTC up + high dominance = BTC season
+            # ETH leadership analysis
+            if eth_price > eth_ma_50 * 1.15 and btc_price < btc_ma_50 * 1.05:
+                altseason_indicators.append("ETH outperforming BTC - Altseason leadership")
+                altseason_score += 20
+            elif eth_price < eth_ma_50 * 0.95:
+                altseason_indicators.append("ETH underperforming - Weak altseason setup")
+                altseason_score -= 10
             
-            # Determine altseason phase
-            if altseason_score > 40:
-                phase = "PEAK_ALTSEASON"
-                recommendation = "Consider taking profits on alts"
+            # Combined trend analysis
+            if btc_price > btc_ma_50 * 1.1 and eth_price > eth_ma_50 * 1.1:
+                if btc_dominance and btc_dominance < 50:
+                    altseason_indicators.append("Both BTC/ETH up + Low dominance = Strong altseason")
+                    altseason_score += 20
+                else:
+                    altseason_indicators.append("BTC/ETH up but high dominance = Mixed signals")
+                    altseason_score += 5
+            
+            # Final phase determination with more granular levels
+            if altseason_score > 50:
+                phase = "EXTREME_ALTSEASON"
+                recommendation = "Strong profit taking on alts - Consider 25-50% exits"
+                exit_signal = True
+            elif altseason_score > 35:
+                phase = "PEAK_ALTSEASON" 
+                recommendation = "Major profit taking - Consider 10-25% exits"
+                exit_signal = True
             elif altseason_score > 20:
                 phase = "ALTSEASON"
-                recommendation = "Monitor alts closely, some profit taking"
-            elif altseason_score < -10:
+                recommendation = "Monitor closely, light profit taking on pumped alts"
+                exit_signal = False
+            elif altseason_score > 0:
+                phase = "EARLY_ALTSEASON"
+                recommendation = "Building altseason momentum - Hold positions"
+                exit_signal = False
+            elif altseason_score < -15:
                 phase = "BTC_SEASON"
-                recommendation = "Focus on BTC accumulation"
+                recommendation = "Focus on BTC/ETH accumulation"
+                exit_signal = False
             else:
                 phase = "TRANSITION"
-                recommendation = "Wait for clearer signals"
+                recommendation = "Wait for clearer directional signals"
+                exit_signal = False
             
             return {
                 'phase': phase,
                 'score': altseason_score,
                 'btc_dominance': btc_dominance,
+                'eth_btc_ratio': eth_btc_ratio,
                 'indicators': altseason_indicators,
                 'recommendation': recommendation,
-                'exit_alts_signal': altseason_score > 35
+                'exit_alts_signal': exit_signal,
+                'btc_rsi': btc_rsi,
+                'eth_rsi': eth_rsi
             }
             
         except Exception as e:
-            logger.error(f"Altseason analysis failed: {e}")
+            logger.error(f"Enhanced altseason analysis failed: {e}")
             return {'error': str(e)}
     
     def _analyze_altcoins(self, data: Dict) -> List[Dict]:
@@ -469,6 +534,11 @@ class StrategicAdvisor:
         """Generate prioritized strategic recommendations"""
         recommendations = []
         
+        # Calculate cycle top risk and partial exit recommendations
+        partial_exit_rec = self._calculate_partial_exit_strategy(data, altseason_analysis)
+        if partial_exit_rec:
+            recommendations.append(partial_exit_rec)
+        
         # ETH/BTC swap recommendations
         swap_rec = eth_btc_analysis.get('swap_recommendation', {})
         if swap_rec.get('confidence') in ['HIGH', 'MEDIUM']:
@@ -509,6 +579,123 @@ class StrategicAdvisor:
                 })
         
         return recommendations
+
+    def _calculate_partial_exit_strategy(self, data: Dict, altseason_analysis: Dict) -> Optional[Dict]:
+        """
+        Calculate partial exit recommendations based on cycle top risk
+        
+        Returns partial sell recommendations when risk score exceeds thresholds:
+        - Risk 60-74: Sell 10%
+        - Risk 75-84: Sell 25% 
+        - Risk 85+: Sell 50%
+        """
+        try:
+            # Get BTC data for cycle analysis
+            btc_data = data.get('bitcoin', {})
+            if not btc_data:
+                return None
+            
+            btc_price = btc_data.get('usd', 0)
+            btc_historical = btc_data.get('historical')
+            
+            if btc_historical is None or btc_historical.empty:
+                return None
+            
+            # Calculate cycle risk indicators
+            risk_score = 0
+            risk_factors = []
+            
+            # 1. Pi Cycle Top Indicator
+            pi_cycle_data = self.indicators.calculate_pi_cycle_top(btc_historical)
+            if pi_cycle_data.get('pi_cycle_signal', False):
+                risk_score += 30
+                risk_factors.append("Pi Cycle Top triggered")
+            elif pi_cycle_data.get('distance', 0) > -5:  # Close to trigger
+                risk_score += 15
+                risk_factors.append("Approaching Pi Cycle Top")
+            
+            # 2. RSI Analysis
+            btc_indicators = self.indicators.get_latest_indicator_values(
+                btc_historical, {'rsi_period': 14, 'enable_rci': True}
+            )
+            btc_rsi = btc_indicators.get('rsi', 50)
+            
+            if btc_rsi > 80:
+                risk_score += 25
+                risk_factors.append(f"BTC RSI extremely overbought ({btc_rsi:.1f})")
+            elif btc_rsi > 70:
+                risk_score += 15
+                risk_factors.append(f"BTC RSI overbought ({btc_rsi:.1f})")
+            
+            # 3. RCI 3-Line analysis for trend exhaustion
+            rci_signal = btc_indicators.get('signal', 'NEUTRAL')
+            if rci_signal == 'STRONG_SELL':
+                risk_score += 20
+                risk_factors.append("RCI signals trend exhaustion")
+            elif rci_signal == 'SELL':
+                risk_score += 10
+                risk_factors.append("RCI shows weakening trend")
+            
+            # 4. Altseason analysis contribution
+            altseason_score = altseason_analysis.get('altseason_score', 0)
+            if altseason_score > 50:  # Peak altseason
+                risk_score += 15
+                risk_factors.append("Altseason at peak levels")
+            
+            # 5. Fear & Greed extreme levels
+            fear_greed_data = data.get('fear_greed_index', {})
+            fear_greed_value = fear_greed_data.get('value', 50) if fear_greed_data else 50
+            
+            if fear_greed_value >= 80:
+                risk_score += 20
+                risk_factors.append(f"Extreme Greed ({fear_greed_value})")
+            elif fear_greed_value >= 70:
+                risk_score += 10
+                risk_factors.append(f"High Greed ({fear_greed_value})")
+            
+            # Determine partial exit recommendation
+            if risk_score >= 85:
+                return {
+                    'priority': 0,  # Highest priority
+                    'type': 'PARTIAL_EXIT',
+                    'action': 'SELL_50_PERCENT',
+                    'sell_percentage': 50,
+                    'risk_score': risk_score,
+                    'reason': f"Critical risk level ({risk_score}/100) - Major profit taking recommended",
+                    'risk_factors': risk_factors,
+                    'confidence': 'HIGH',
+                    'urgency': 'IMMEDIATE'
+                }
+            elif risk_score >= 75:
+                return {
+                    'priority': 1,
+                    'type': 'PARTIAL_EXIT',
+                    'action': 'SELL_25_PERCENT',
+                    'sell_percentage': 25,
+                    'risk_score': risk_score,
+                    'reason': f"High risk level ({risk_score}/100) - Partial profit taking",
+                    'risk_factors': risk_factors,
+                    'confidence': 'HIGH',
+                    'urgency': 'HIGH'
+                }
+            elif risk_score >= 60:
+                return {
+                    'priority': 2,
+                    'type': 'PARTIAL_EXIT',
+                    'action': 'SELL_10_PERCENT',
+                    'sell_percentage': 10,
+                    'risk_score': risk_score,
+                    'reason': f"Moderate risk level ({risk_score}/100) - Light profit taking",
+                    'risk_factors': risk_factors,
+                    'confidence': 'MEDIUM',
+                    'urgency': 'MEDIUM'
+                }
+            
+            return None  # No partial exit needed
+            
+        except Exception as e:
+            logger.error(f"Partial exit strategy calculation failed: {e}")
+            return None
     
     def _calculate_goal_progress(self, data: Dict) -> Dict:
         """Calculate progress toward 1 BTC + 10 ETH goal"""
@@ -635,7 +822,7 @@ class StrategicAdvisor:
         report.append("")
         
         # Cycle Top Analysis
-        cycle_risk = self._calculate_cycle_top_risk(analysis)
+        cycle_risk = self._calculate_enhanced_cycle_risk(analysis)
         report.append("🔺 ANÁLISE DE TOPO:")
         report.append(f"   Risco: {cycle_risk['score']}/100 ({cycle_risk['level']})")
         if cycle_risk['score'] >= 80:
@@ -841,3 +1028,86 @@ class StrategicAdvisor:
         except Exception as e:
             logger.error(f"Failed to calculate cycle top risk: {e}")
             return {'score': 0, 'level': 'UNKNOWN'}
+
+    def _calculate_enhanced_cycle_risk(self, analysis: Dict) -> Dict:
+        """
+        Calculate enhanced cycle top risk using new indicators (Pi Cycle + RCI)
+        """
+        try:
+            # Get BTC data for enhanced analysis
+            data = {}  # This should be passed from analyze_strategic_position
+            btc_data = data.get('bitcoin', {})
+            btc_historical = btc_data.get('historical')
+            
+            risk_score = 0
+            pi_cycle_info = {}
+            rci_info = {}
+            
+            # If we have BTC historical data, calculate new indicators
+            if btc_historical is not None and not btc_historical.empty:
+                try:
+                    # Pi Cycle Top Indicator
+                    pi_cycle_data = self.indicators.calculate_pi_cycle_top(btc_historical)
+                    pi_cycle_info = pi_cycle_data
+                    
+                    if pi_cycle_data.get('pi_cycle_signal', False):
+                        risk_score += 30  # Major risk if Pi Cycle triggered
+                    elif pi_cycle_data.get('distance', -100) > -5:
+                        risk_score += 15  # Moderate risk if approaching
+                    
+                    # RCI 3-Line Analysis
+                    rci_data = self.indicators.calculate_rci_3_line(btc_historical)
+                    rci_info = rci_data
+                    
+                    rci_signal = rci_data.get('signal', 'NEUTRAL')
+                    if rci_signal == 'STRONG_SELL':
+                        risk_score += 20
+                    elif rci_signal == 'SELL':
+                        risk_score += 10
+                    
+                    # RSI contribution
+                    btc_indicators = self.indicators.get_latest_indicator_values(
+                        btc_historical, {'rsi_period': 14}
+                    )
+                    btc_rsi = btc_indicators.get('rsi', 50)
+                    
+                    if btc_rsi > 80:
+                        risk_score += 25
+                    elif btc_rsi > 70:
+                        risk_score += 15
+                    
+                except Exception as e:
+                    logger.debug(f"Enhanced indicators calculation failed: {e}")
+            
+            # Add traditional risk factors
+            traditional_risk = self._calculate_cycle_top_risk(analysis)
+            risk_score += traditional_risk.get('score', 0) * 0.5  # Weight traditional score at 50%
+            
+            # Ensure score is between 0-100
+            risk_score = max(0, min(100, int(risk_score)))
+            
+            # Determine level
+            if risk_score >= 85:
+                level = "EXTREMO"
+            elif risk_score >= 75:
+                level = "CRÍTICO"
+            elif risk_score >= 60:
+                level = "ALTO"
+            elif risk_score >= 40:
+                level = "MODERADO"
+            elif risk_score >= 20:
+                level = "BAIXO"
+            else:
+                level = "MÍNIMO"
+            
+            return {
+                'score': risk_score,
+                'level': level,
+                'pi_cycle': pi_cycle_info,
+                'rci': rci_info
+            }
+            
+        except Exception as e:
+            logger.error(f"Enhanced cycle risk calculation failed: {e}")
+            # Fallback to traditional calculation
+            return self._calculate_cycle_top_risk(analysis)

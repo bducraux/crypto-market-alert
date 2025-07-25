@@ -272,6 +272,16 @@ class TechnicalIndicators:
                     if series is not None and not series.empty:
                         results[key] = float(series.iloc[-1]) if not pd.isna(series.iloc[-1]) else None
             
+            # Pi Cycle Top Indicator (primarily for BTC)
+            if config.get('enable_pi_cycle', False):
+                pi_cycle_data = self.calculate_pi_cycle_top(df)
+                results.update(pi_cycle_data)
+            
+            # 3-Line RCI
+            if config.get('enable_rci', False):
+                rci_data = self.calculate_rci_3_line(df, config.get('rci_periods', [9, 26, 52]))
+                results.update(rci_data)
+            
             # Current price
             if 'close' in df.columns and not df['close'].empty:
                 results['current_price'] = float(df['close'].iloc[-1])
@@ -341,3 +351,171 @@ class TechnicalIndicators:
         except Exception as e:
             self.logger.error(f"Support/Resistance calculation failed: {e}")
             return {'support': None, 'resistance': None}
+
+    def calculate_pi_cycle_top(self, df: pd.DataFrame, short_period: int = 111, long_period: int = 350) -> Dict[str, any]:
+        """
+        Calculate Pi Cycle Top Indicator for Bitcoin cycle analysis
+        
+        The Pi Cycle Top Indicator uses the 111-day moving average and 2x the 350-day moving average.
+        When the 111-day MA crosses above the 2x 350-day MA, it historically indicates a market top.
+        
+        Args:
+            df: DataFrame with 'close' column
+            short_period: Short MA period (default 111)
+            long_period: Long MA period (default 350)
+            
+        Returns:
+            Dictionary with Pi Cycle data and signals
+        """
+        if not self.validate_data(df, long_period):
+            return {'pi_cycle_signal': False, 'ma_111': None, 'ma_350_2x': None, 'distance': None}
+        
+        try:
+            # Calculate the moving averages
+            ma_111 = ta.sma(df['close'], length=short_period)
+            ma_350 = ta.sma(df['close'], length=long_period)
+            
+            if ma_111 is None or ma_350 is None or ma_111.empty or ma_350.empty:
+                return {'pi_cycle_signal': False, 'ma_111': None, 'ma_350_2x': None, 'distance': None}
+            
+            # Pi Cycle uses 2x the 350-day MA
+            ma_350_2x = ma_350 * 2
+            
+            # Get latest values
+            latest_111 = float(ma_111.iloc[-1]) if not pd.isna(ma_111.iloc[-1]) else None
+            latest_350_2x = float(ma_350_2x.iloc[-1]) if not pd.isna(ma_350_2x.iloc[-1]) else None
+            
+            if latest_111 is None or latest_350_2x is None:
+                return {'pi_cycle_signal': False, 'ma_111': None, 'ma_350_2x': None, 'distance': None}
+            
+            # Check for crossover signal
+            pi_cycle_signal = latest_111 >= latest_350_2x
+            
+            # Calculate distance between lines (as percentage)
+            distance = ((latest_111 / latest_350_2x) - 1) * 100
+            
+            # Detect recent crossover
+            crossover_detected = False
+            if len(ma_111) >= 2 and len(ma_350_2x) >= 2:
+                prev_111 = ma_111.iloc[-2]
+                prev_350_2x = ma_350_2x.iloc[-2]
+                
+                if not pd.isna(prev_111) and not pd.isna(prev_350_2x):
+                    # Bullish crossover: 111 MA crosses above 2x 350 MA
+                    crossover_detected = (prev_111 < prev_350_2x) and (latest_111 >= latest_350_2x)
+            
+            return {
+                'pi_cycle_signal': pi_cycle_signal,
+                'ma_111': latest_111,
+                'ma_350_2x': latest_350_2x,
+                'distance': round(distance, 2),
+                'crossover_detected': crossover_detected,
+                'risk_level': 'HIGH' if pi_cycle_signal else 'LOW'
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Pi Cycle Top calculation failed: {e}")
+            return {'pi_cycle_signal': False, 'ma_111': None, 'ma_350_2x': None, 'distance': None}
+
+    def calculate_rci_3_line(self, df: pd.DataFrame, periods: List[int] = [9, 26, 52]) -> Dict[str, any]:
+        """
+        Calculate 3-Line RCI (Rank Correlation Index) for trend analysis
+        
+        RCI measures the correlation between price rank and time rank.
+        Three periods provide short, medium, and long-term trend analysis.
+        
+        Args:
+            df: DataFrame with 'close' column
+            periods: List of periods for RCI calculation [short, medium, long]
+            
+        Returns:
+            Dictionary with RCI values and signals
+        """
+        if not self.validate_data(df, max(periods)):
+            return {'rci_short': None, 'rci_medium': None, 'rci_long': None, 'signal': 'NEUTRAL'}
+        
+        try:
+            results = {}
+            rci_values = {}
+            
+            for i, period in enumerate(periods):
+                rci_name = ['short', 'medium', 'long'][i]
+                rci_values[rci_name] = self._calculate_single_rci(df, period)
+                results[f'rci_{rci_name}'] = rci_values[rci_name]
+            
+            # Generate trading signal based on RCI convergence/divergence
+            signal = self._analyze_rci_signals(rci_values)
+            results['signal'] = signal
+            
+            # Add overbought/oversold levels
+            results['overbought_level'] = 80
+            results['oversold_level'] = -80
+            
+            return results
+            
+        except Exception as e:
+            self.logger.error(f"3-Line RCI calculation failed: {e}")
+            return {'rci_short': None, 'rci_medium': None, 'rci_long': None, 'signal': 'NEUTRAL'}
+
+    def _calculate_single_rci(self, df: pd.DataFrame, period: int) -> Optional[float]:
+        """
+        Calculate RCI for a single period
+        
+        RCI = (1 - 6 * Σ(Rank_Price - Rank_Time)² / (period * (period² - 1))) * 100
+        """
+        if len(df) < period:
+            return None
+        
+        try:
+            # Get the last 'period' values
+            recent_data = df['close'].tail(period).values
+            
+            # Create time ranks (1 to period)
+            time_ranks = list(range(1, period + 1))
+            
+            # Create price ranks (1 = lowest price, period = highest price)
+            price_ranks = pd.Series(recent_data).rank(method='min').tolist()
+            
+            # Calculate rank differences squared
+            rank_diff_squared = sum((p_rank - t_rank) ** 2 for p_rank, t_rank in zip(price_ranks, time_ranks))
+            
+            # RCI formula
+            rci = (1 - (6 * rank_diff_squared) / (period * (period ** 2 - 1))) * 100
+            
+            return float(rci)
+            
+        except Exception as e:
+            self.logger.error(f"Single RCI calculation failed for period {period}: {e}")
+            return None
+
+    def _analyze_rci_signals(self, rci_values: Dict[str, Optional[float]]) -> str:
+        """
+        Analyze RCI signals to determine market trend
+        
+        Returns:
+            Signal string: 'STRONG_BUY', 'BUY', 'NEUTRAL', 'SELL', 'STRONG_SELL'
+        """
+        short = rci_values.get('short')
+        medium = rci_values.get('medium')
+        long_term = rci_values.get('long')
+        
+        if any(v is None for v in [short, medium, long_term]):
+            return 'NEUTRAL'
+        
+        # Count how many RCI lines are in bullish/bearish territory
+        bullish_count = sum(1 for rci in [short, medium, long_term] if rci > 0)
+        bearish_count = sum(1 for rci in [short, medium, long_term] if rci < 0)
+        
+        # Strong signals when all three align
+        if bullish_count == 3 and short > 50:
+            return 'STRONG_BUY'
+        elif bearish_count == 3 and short < -50:
+            return 'STRONG_SELL'
+        
+        # Medium signals when majority align
+        elif bullish_count >= 2 and short > 0:
+            return 'BUY'
+        elif bearish_count >= 2 and short < 0:
+            return 'SELL'
+        
+        return 'NEUTRAL'
