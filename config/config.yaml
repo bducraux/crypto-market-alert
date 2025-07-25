@@ -1,0 +1,245 @@
+coins:
+- symbol: bitcoin
+  name: BTC
+  coingecko_id: bitcoin
+  avg_price: 18355.268  # Preço médio de compra
+  alerts:
+    price_above: 125000
+    price_below: 80000
+    rsi_oversold: 30
+    rsi_overbought: 70
+- symbol: ethereum
+  name: ETH
+  coingecko_id: ethereum
+  avg_price: 354.572  # Preço médio de compra
+  alerts:
+    price_above: 5000
+    price_below: 2000
+    rsi_oversold: 30
+    rsi_overbought: 70
+- symbol: binancecoin
+  name: BNB
+  coingecko_id: binancecoin
+  avg_price: 362.83  # Preço médio de compra
+  alerts:
+    price_above: 800
+    price_below: 450
+    rsi_oversold: 25
+    rsi_overbought: 75
+- symbol: chainlink
+  name: LINK
+  coingecko_id: chainlink
+  avg_price: 14.53  # Preço médio de compra
+  alerts:
+    price_above: 25
+    price_below: 10
+    rsi_oversold: 25
+    rsi_overbought: 75
+- symbol: ondo
+  name: ONDO
+  coingecko_id: ondo-finance
+  avg_price: 0.8  # Preço médio de compra
+  alerts:
+    price_above: 1.5
+    price_below: 0.6
+    rsi_oversold: 25
+    rsi_overbought: 75
+- symbol: matic
+  name: MATIC
+  coingecko_id: matic-network
+  avg_price: 1.196  # Preço médio de compra
+  alerts:
+    price_above: 1.5
+    price_below: 0.5
+    rsi_oversold: 25
+    rsi_overbought: 75
+- symbol: cardano
+  name: ADA
+  coingecko_id: cardano
+  avg_price: 1.376  # Preço médio de compra
+  alerts:
+    price_above: 2.0
+    price_below: 0.5
+    rsi_oversold: 25
+    rsi_overbought: 75
+- symbol: tron
+  name: TRX
+  coingecko_id: tron
+  avg_price: 0.058  # Preço médio de compra
+  alerts:
+    price_above: 0.15
+    price_below: 0.07
+    rsi_oversold: 25
+    rsi_overbought: 75
+- symbol: cosmos
+  name: ATOM
+  coingecko_id: cosmos
+  avg_price: 12.376  # Preço médio de compra
+  alerts:
+    price_above: 20
+    price_below: 7
+    rsi_oversold: 25
+    rsi_overbought: 75
+- symbol: lido-dao
+  name: LDO
+  coingecko_id: lido-dao
+  avg_price: 3.376  # Preço médio de compra
+  alerts:
+    price_above: 4
+    price_below: 1
+    rsi_oversold: 25
+    rsi_overbought: 75
+- symbol: tether
+  name: USDT
+  coingecko_id: tether
+  avg_price: 1.176  # Preço médio de compra
+  alerts:
+    price_above: 1.05
+    price_below: 0.95
+    rsi_oversold: 25
+    rsi_overbought: 75
+- symbol: stacks
+  name: STX
+  coingecko_id: blockstack
+  avg_price: 2.796  # Preço médio de compra
+  alerts:
+    price_above: 4
+    price_below: 1.5
+    rsi_oversold: 25
+    rsi_overbought: 75
+- symbol: render-token
+  name: RNDR
+  coingecko_id: render-token
+  avg_price: 11.6  # Preço médio de compra
+  alerts:
+    price_above: 15
+    price_below: 5
+    rsi_oversold: 25
+    rsi_overbought: 75
+- symbol: pancakeswap-token
+  name: CAKE
+  coingecko_id: pancakeswap-token
+  avg_price: 9.042  # Preço médio de compra
+  alerts:
+    price_above: 6
+    price_below: 2
+    rsi_oversold: 25
+    rsi_overbought: 75
+- symbol: fetch-ai
+  name: FET
+  coingecko_id: fetch-ai
+  avg_price: 2.956  # Preço médio de compra
+  alerts:
+    price_above: 4
+    price_below: 1.2
+    rsi_oversold: 25
+    rsi_overbought: 75
+- symbol: pyth-network
+  name: PYTH
+  coingecko_id: pyth-network
+  avg_price: 0.684  # Preço médio de compra
+  alerts:
+    price_above: 1.5
+    price_below: 0.4
+    rsi_oversold: 25
+    rsi_overbought: 75
+indicators:
+  rsi_period: 14
+  ma_short: 50
+  ma_long: 200
+  macd_fast: 12
+  macd_slow: 26
+  macd_signal: 9
+market_metrics:
+  btc_dominance:
+    above: 60.0
+    below: 40.0
+  eth_btc_ratio:
+    above: 0.08
+    below: 0.04
+  fear_greed_index:
+    extreme_fear: 20
+    extreme_greed: 80
+general:
+  check_interval: 300
+  data_points: 100
+  retry_attempts: 3
+  retry_delay: 5
+alert_cooldown:
+  price_alert: 60
+  indicator_alert: 30
+  market_metric_alert: 120
+  comprehensive_alert: 90  # Alertas profissionais combinados
+  
+# Configurações para alertas profissionais
+professional_alerts:
+  enabled: true
+  only_actionable: true  # Só enviar alertas que requerem ação
+  min_confidence: "MÉDIA"  # ALTA, MÉDIA, BAIXA
+  min_signal_strength: 35  # Força mínima do sinal para gerar alerta
+  
+  # Configurações de P&L (Profit & Loss)
+  pnl_consideration:
+    enabled: true
+    min_profit_for_sell: 5.0  # % mínimo de lucro para recomendar venda
+    max_loss_for_sell: -15.0  # % máximo de prejuízo antes de stop loss
+    hodl_on_loss: true  # Aguardar altseason se estiver no prejuízo
+    altseason_patience: true  # Não vender altcoins em prejuízo durante possível altseason
+  
+  exit_signals:
+    rsi_threshold: 75
+    fear_greed_threshold: 80
+  entry_signals:
+    rsi_threshold: 30
+    fear_greed_threshold: 30
+  altseason:
+    btc_dominance_threshold: 45
+    eth_btc_ratio_threshold: 0.07
+
+# Configurações para Advisor Estratégico (Goal: 1 BTC + 10 ETH)
+strategic_alerts:
+  enabled: true
+  send_daily_report: true     # Enviar relatório diário
+  min_opportunity_score: 60   # Score mínimo para alertas de oportunidade
+  eth_btc_swap_confidence: "MEDIUM"  # Confiança mínima para sugerir swaps BTC/ETH
+  altcoin_exit_threshold: 70  # Score mínimo para sugerir saída de altcoins
+  consolidate_alerts: true    # NOVA: Consolidar múltiplos alertas em um só (remove outras mensagens)
+  priority_focus: "BTC_ETH_MAXIMIZATION"  # Foco principal da estratégia
+    
+  # Indicadores de Topo de Ciclo (Nível 1 - Gratuito)
+  cycle_top_detection:
+    enabled: true
+    
+    # Configurações de alerta
+    send_daily_report: true     # Enviar relatório diário mesmo sem risco
+    min_risk_for_alert: 30      # Score mínimo para enviar (baixo = sempre enviar)
+    critical_risk_threshold: 80 # Score para alerta CRÍTICO
+    high_risk_threshold: 65     # Score para alerta de RISCO ALTO
+    
+    # Critérios para detectar possível topo de ciclo
+    btc_overextension:
+      ma200_multiple: 4.0        # BTC > 4x da MA200 = zona perigosa
+      ma50_divergence: true      # MA50 começa a ficar plana
+      
+    extreme_euphoria:
+      fear_greed_threshold: 85   # Fear & Greed > 85
+      fear_greed_days: 3         # Por 3+ dias consecutivos
+      volume_spike: 2.0          # Volume > 2x da média
+      
+    market_structure:
+      btc_dominance_peak: 65     # BTC dominance muito alta
+      dominance_reversal: true   # E começando a cair
+      alt_euphoria: 35           # OU dominance muito baixa (alt mania)
+      
+    technical_signals:
+      rsi_extreme: 80            # RSI BTC > 80
+      multiple_coins_overbought: 5  # 5+ moedas com RSI > 75
+      
+    # Configurações do alerta
+    alert_priority: "CRÍTICO"
+    cooldown_hours: 6           # Relatório a cada 6 horas (4x/dia)
+logging:
+  level: INFO
+  file: logs/crypto_alerts.log
+  max_file_size: 10
+  backup_count: 5

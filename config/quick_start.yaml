@@ -1,0 +1,59 @@
+# Quick Start Configuration for Crypto Market Alert System
+
+# Basic configuration with BTC and ETH only
+coins:
+  - symbol: "bitcoin"
+    name: "BTC"
+    coingecko_id: "bitcoin"
+    alerts:
+      price_above: 100000    # Alert when BTC > $100k
+      price_below: 80000     # Alert when BTC < $80k
+      rsi_oversold: 30       # Potential buying opportunity
+      rsi_overbought: 70     # Potential selling signal
+      
+  - symbol: "ethereum"
+    name: "ETH"
+    coingecko_id: "ethereum"
+    alerts:
+      price_above: 4000      # Alert when ETH > $4k
+      price_below: 3000      # Alert when ETH < $3k
+      rsi_oversold: 30
+      rsi_overbought: 70
+
+# Technical indicator settings (standard values)
+indicators:
+  rsi_period: 14
+  ma_short: 50
+  ma_long: 200
+  macd_fast: 12
+  macd_slow: 26
+  macd_signal: 9
+  
+# Market-wide alerts
+market_metrics:
+  btc_dominance:
+    above: 60.0      # Alert when BTC dominance > 60%
+    below: 45.0      # Alert when BTC dominance < 45%
+  eth_btc_ratio:
+    above: 0.08      # Alert when ETH/BTC ratio > 0.08
+    below: 0.05      # Alert when ETH/BTC ratio < 0.05
+
+# System settings
+general:
+  check_interval: 300      # Check every 5 minutes
+  data_points: 100        # 100 data points for indicators
+  retry_attempts: 3
+  retry_delay: 5
+  
+# Alert cooldowns (prevent spam)
+alert_cooldown:
+  price_alert: 60         # 1 hour between same price alerts
+  indicator_alert: 30     # 30 minutes between indicator alerts
+  market_metric_alert: 120 # 2 hours between market alerts
+
+# Logging
+logging:
+  level: "INFO"
+  file: "logs/crypto_alerts.log"
+  max_file_size: 10
+  backup_count: 5

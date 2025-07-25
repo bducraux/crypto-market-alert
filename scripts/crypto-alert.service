@@ -1,0 +1,27 @@
+[Unit]
+Description=Crypto Market Alert System
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+Group=YOUR_GROUP
+WorkingDirectory=/path/to/crypto-market-alert
+Environment=PATH=/path/to/crypto-market-alert/venv/bin
+ExecStart=/path/to/crypto-market-alert/venv/bin/python /path/to/crypto-market-alert/run.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=crypto-alert
+
+# Security settings
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/path/to/crypto-market-alert/logs
+
+[Install]
+WantedBy=multi-user.target
