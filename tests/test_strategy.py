@@ -128,39 +128,56 @@ class TestAlertStrategy:
         assert strategy.cooldown_manager is not None
         assert hasattr(strategy, 'logger')
     
-    def test_evaluate_price_alerts_above_threshold(self, strategy, sample_coin_config):
-        """Test price alert when price is above threshold"""
-        coin_data = {'usd': 55000.0}  # Above 50000 threshold
+    @pytest.mark.parametrize("price", [
+        50001.0, 55000.0, 67890.12, 89000.75, 123456.78
+    ])
+    def test_evaluate_price_alerts_above_threshold(self, strategy, sample_coin_config, price):
+        """Test price alert when price is above threshold with realistic prices"""
+        coin_data = {'usd': price}  # Above 50000 threshold
         
         alerts = strategy.evaluate_price_alerts(coin_data, sample_coin_config)
         
+        # Test actual threshold logic instead of hardcoded assertions
         assert len(alerts) == 1
         assert alerts[0]['type'] == 'price_above'
         assert alerts[0]['coin'] == 'BTC'
         assert alerts[0]['priority'] == 'high'
-        assert alerts[0]['current_price'] == 55000.0
+        assert isinstance(alerts[0]['current_price'], (int, float))
+        assert alerts[0]['current_price'] == price
+        assert alerts[0]['current_price'] > alerts[0]['threshold']
         assert alerts[0]['threshold'] == 50000
     
-    def test_evaluate_price_alerts_below_threshold(self, strategy, sample_coin_config):
-        """Test price alert when price is below threshold"""
-        coin_data = {'usd': 35000.0}  # Below 40000 threshold
+    @pytest.mark.parametrize("price", [
+        39999.0, 35000.0, 32000.50, 28500.75, 15000.25
+    ])
+    def test_evaluate_price_alerts_below_threshold(self, strategy, sample_coin_config, price):
+        """Test price alert when price is below threshold with realistic prices"""
+        coin_data = {'usd': price}  # Below 40000 threshold
         
         alerts = strategy.evaluate_price_alerts(coin_data, sample_coin_config)
         
+        # Test actual threshold logic instead of hardcoded assertions
         assert len(alerts) == 1
         assert alerts[0]['type'] == 'price_below'
         assert alerts[0]['coin'] == 'BTC'
         assert alerts[0]['priority'] == 'high'
-        assert alerts[0]['current_price'] == 35000.0
+        assert isinstance(alerts[0]['current_price'], (int, float))
+        assert alerts[0]['current_price'] == price
+        assert alerts[0]['current_price'] < alerts[0]['threshold']
         assert alerts[0]['threshold'] == 40000
     
-    def test_evaluate_price_alerts_within_range(self, strategy, sample_coin_config):
-        """Test no price alerts when price is within normal range"""
-        coin_data = {'usd': 45000.0}  # Between 40000 and 50000
+    @pytest.mark.parametrize("price", [
+        40000.1, 42500.0, 45000.0, 47500.25, 49999.9
+    ])
+    def test_evaluate_price_alerts_within_range(self, strategy, sample_coin_config, price):
+        """Test no price alerts when price is within normal range with realistic prices"""
+        coin_data = {'usd': price}  # Between 40000 and 50000
         
         alerts = strategy.evaluate_price_alerts(coin_data, sample_coin_config)
         
+        # Test actual range logic - should not trigger alerts within thresholds
         assert len(alerts) == 0
+        assert 40000 < price < 50000  # Verify price is actually within range
     
     def test_evaluate_price_alerts_no_price_data(self, strategy, sample_coin_config):
         """Test price alerts with missing price data"""
@@ -170,39 +187,59 @@ class TestAlertStrategy:
         
         assert len(alerts) == 0
     
-    def test_evaluate_rsi_alerts_oversold(self, strategy, sample_coin_config):
-        """Test RSI oversold alert"""
-        indicators_data = {'rsi': 25.0}  # Below 30 threshold
+    @pytest.mark.parametrize("rsi_value", [
+        29.9, 25.0, 20.5, 15.2, 8.7
+    ])
+    def test_evaluate_rsi_alerts_oversold(self, strategy, sample_coin_config, rsi_value):
+        """Test RSI oversold alert with realistic RSI values"""
+        indicators_data = {'rsi': rsi_value}  # Below 30 threshold
         
         alerts = strategy.evaluate_rsi_alerts(indicators_data, sample_coin_config)
         
+        # Test actual RSI threshold logic instead of hardcoded assertions
         assert len(alerts) == 1
         assert alerts[0]['type'] == 'rsi_oversold'
         assert alerts[0]['coin'] == 'BTC'
         assert alerts[0]['priority'] == 'medium'
-        assert alerts[0]['rsi_value'] == 25.0
+        assert isinstance(alerts[0]['rsi_value'], (int, float))
+        assert alerts[0]['rsi_value'] == rsi_value
+        assert alerts[0]['rsi_value'] < alerts[0]['threshold']
         assert alerts[0]['threshold'] == 30
+        assert 0 <= alerts[0]['rsi_value'] <= 100  # Valid RSI range
     
-    def test_evaluate_rsi_alerts_overbought(self, strategy, sample_coin_config):
-        """Test RSI overbought alert"""
-        indicators_data = {'rsi': 75.0}  # Above 70 threshold
+    @pytest.mark.parametrize("rsi_value", [
+        70.1, 75.0, 82.5, 88.3, 95.7
+    ])
+    def test_evaluate_rsi_alerts_overbought(self, strategy, sample_coin_config, rsi_value):
+        """Test RSI overbought alert with realistic RSI values"""
+        indicators_data = {'rsi': rsi_value}  # Above 70 threshold
         
         alerts = strategy.evaluate_rsi_alerts(indicators_data, sample_coin_config)
         
+        # Test actual RSI threshold logic instead of hardcoded assertions
         assert len(alerts) == 1
         assert alerts[0]['type'] == 'rsi_overbought'
         assert alerts[0]['coin'] == 'BTC'
         assert alerts[0]['priority'] == 'medium'
-        assert alerts[0]['rsi_value'] == 75.0
+        assert isinstance(alerts[0]['rsi_value'], (int, float))
+        assert alerts[0]['rsi_value'] == rsi_value
+        assert alerts[0]['rsi_value'] > alerts[0]['threshold']
         assert alerts[0]['threshold'] == 70
+        assert 0 <= alerts[0]['rsi_value'] <= 100  # Valid RSI range
     
-    def test_evaluate_rsi_alerts_normal_range(self, strategy, sample_coin_config):
-        """Test no RSI alerts when in normal range"""
-        indicators_data = {'rsi': 50.0}  # Between 30 and 70
+    @pytest.mark.parametrize("rsi_value", [
+        30.1, 40.5, 50.0, 60.2, 69.9
+    ])
+    def test_evaluate_rsi_alerts_normal_range(self, strategy, sample_coin_config, rsi_value):
+        """Test no RSI alerts when in normal range with realistic RSI values"""
+        indicators_data = {'rsi': rsi_value}  # Between 30 and 70
         
         alerts = strategy.evaluate_rsi_alerts(indicators_data, sample_coin_config)
         
+        # Test actual RSI range logic - should not trigger alerts within thresholds
         assert len(alerts) == 0
+        assert 30 < rsi_value < 70  # Verify RSI is actually within normal range
+        assert 0 <= rsi_value <= 100  # Valid RSI range
     
     def test_evaluate_rsi_alerts_no_rsi_data(self, strategy, sample_coin_config):
         """Test RSI alerts with missing RSI data"""

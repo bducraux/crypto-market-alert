@@ -42,17 +42,19 @@ class DataFetcher:
             'chainlink': 'LINKUSDT',
             'ondo-finance': 'ONDOUSDT',
             'matic-network': 'MATICUSDT',
-            'polygon': 'MATICUSDT',  # Alias para matic
+            'polygon': 'MATICUSDT',
             'cardano': 'ADAUSDT',
             'tron': 'TRXUSDT',
             'cosmos': 'ATOMUSDT',
             'lido-dao': 'LDOUSDT',
-            'tether': None,  # USDT não precisa de par, valor fixo em ~$1
+            'tether': None,
             'blockstack': 'STXUSDT',
+            'stacks': 'STXUSDT',
             'render-token': 'RNDRUSDT',
             'pancakeswap-token': 'CAKEUSDT',
             'fetch-ai': 'FETUSDT',
-            'pyth-network': 'PYTHUSDT'
+            'pyth-network': 'PYTHUSDT',
+            'shiba-inu': 'SHIBUSDT'
         }
         
         logger.info("Data Fetcher initialized (Binance + CoinGecko)")

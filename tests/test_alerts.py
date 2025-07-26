@@ -86,44 +86,65 @@ class TestTelegramAlertsManager:
         assert '[' in formatted  # Timestamp bracket
         assert ']' in formatted
     
-    def test_format_alert_message_price_alert(self, telegram_manager):
-        """Test price alert formatting"""
+    @pytest.mark.parametrize("current_price,threshold", [
+        (45000.50, 45000.00), (67890.12, 67000.00), (32500.75, 32000.00),
+        (89123.45, 89000.00), (123456.78, 123000.00)
+    ])
+    def test_format_alert_message_price_alert(self, telegram_manager, current_price, threshold):
+        """Test price alert formatting with realistic price ranges"""
         alert = {
             'message': 'BTC price alert',
             'type': 'price_breakout',
             'coin': 'BTC',
             'priority': 'medium',
-            'current_price': 45000.50,
-            'threshold': 45000.00
+            'current_price': current_price,
+            'threshold': threshold
         }
         
         formatted = telegram_manager.format_alert_message(alert)
         
+        # Test actual formatting logic instead of hardcoded assertions
         assert '⚠️' in formatted  # Medium priority emoji
         assert 'BTC price alert' in formatted
-        assert '$45,000.50' in formatted
-        assert '$45,000.00' in formatted
         assert '💰' in formatted
         assert '🎯' in formatted
+        
+        # Verify price formatting is correct
+        formatted_current = f"${current_price:,.2f}"
+        formatted_threshold = f"${threshold:,.2f}"
+        assert formatted_current in formatted
+        assert formatted_threshold in formatted
     
-    def test_format_alert_message_rsi_alert(self, telegram_manager):
-        """Test RSI alert formatting"""
+    @pytest.mark.parametrize("rsi_value,threshold", [
+        (78.5, 70), (85.2, 70), (72.3, 70), (25.8, 30), (15.4, 30)
+    ])
+    def test_format_alert_message_rsi_alert(self, telegram_manager, rsi_value, threshold):
+        """Test RSI alert formatting with realistic RSI ranges"""
+        alert_type = 'rsi_overbought' if rsi_value > 50 else 'rsi_oversold'
+        message = 'RSI overbought' if rsi_value > 50 else 'RSI oversold'
+        
         alert = {
-            'message': 'RSI overbought',
-            'type': 'rsi_overbought',
+            'message': message,
+            'type': alert_type,
             'coin': 'ETH',
             'priority': 'low',
-            'rsi_value': 78.5,
-            'threshold': 70
+            'rsi_value': rsi_value,
+            'threshold': threshold
         }
         
         formatted = telegram_manager.format_alert_message(alert)
         
+        # Test actual RSI formatting logic instead of hardcoded assertions
         assert 'ℹ️' in formatted  # Low priority emoji
-        assert 'RSI overbought' in formatted
-        assert 'RSI: 78.50' in formatted
-        assert 'Threshold: 70' in formatted
+        assert message in formatted
         assert '📊' in formatted
+        
+        # Verify RSI formatting is correct
+        formatted_rsi = f"RSI: {rsi_value:.2f}"
+        formatted_threshold = f"Threshold: {threshold}"
+        assert formatted_rsi in formatted
+        assert formatted_threshold in formatted
+        assert 0 <= rsi_value <= 100  # Valid RSI range
     
     def test_format_alert_message_dominance_alert(self, telegram_manager):
         """Test dominance alert formatting"""
