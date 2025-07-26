@@ -44,7 +44,7 @@ class TechnicalIndicators:
         
         return True
     
-    def calculate_rsi(self, df: pd.DataFrame, period: int = 14) -> Optional[pd.Series]:
+    def calculate_rsi(self, df: pd.DataFrame, period: int = 14) -> Optional[float]:
         """
         Calculate Relative Strength Index (RSI)
         
@@ -53,19 +53,22 @@ class TechnicalIndicators:
             period: RSI calculation period
             
         Returns:
-            RSI values as pandas Series or None if calculation fails
+            Latest RSI value as float or None if calculation fails
         """
         if not self.validate_data(df, period + 1):
             return None
         
         try:
             rsi = ta.rsi(df['close'], length=period)
-            return rsi
+            if rsi is not None and not rsi.empty:
+                latest_rsi = rsi.iloc[-1]
+                return float(latest_rsi) if not pd.isna(latest_rsi) else None
+            return None
         except Exception as e:
             self.logger.error(f"RSI calculation failed: {e}")
             return None
     
-    def calculate_macd(self, df: pd.DataFrame, fast: int = 12, slow: int = 26, signal: int = 9) -> Optional[Dict[str, pd.Series]]:
+    def calculate_macd(self, df: pd.DataFrame, fast: int = 12, slow: int = 26, signal: int = 9) -> Dict[str, Optional[pd.Series]]:
         """
         Calculate MACD (Moving Average Convergence Divergence)
         
@@ -76,10 +79,14 @@ class TechnicalIndicators:
             signal: Signal line EMA period
             
         Returns:
-            Dictionary with MACD line, signal line, and histogram or None if calculation fails
+            Dictionary with MACD line, signal line, and histogram (None values if calculation fails)
         """
         if not self.validate_data(df, slow + signal):
-            return None
+            return {
+                'macd': None,
+                'signal': None,
+                'histogram': None
+            }
         
         try:
             macd_data = ta.macd(df['close'], fast=fast, slow=slow, signal=signal)
@@ -91,7 +98,11 @@ class TechnicalIndicators:
             }
         except Exception as e:
             self.logger.error(f"MACD calculation failed: {e}")
-            return None
+            return {
+                'macd': None,
+                'signal': None,
+                'histogram': None
+            }
     
     def calculate_moving_averages(self, df: pd.DataFrame, short_period: int = 50, long_period: int = 200) -> Optional[Dict[str, pd.Series]]:
         """
@@ -144,7 +155,7 @@ class TechnicalIndicators:
             self.logger.error(f"EMA calculation failed: {e}")
             return None
     
-    def calculate_bollinger_bands(self, df: pd.DataFrame, period: int = 20, std_dev: float = 2) -> Optional[Dict[str, pd.Series]]:
+    def calculate_bollinger_bands(self, df: pd.DataFrame, period: int = 20, std_dev: float = 2) -> Dict[str, Optional[pd.Series]]:
         """
         Calculate Bollinger Bands
         
@@ -154,22 +165,30 @@ class TechnicalIndicators:
             std_dev: Standard deviation multiplier
             
         Returns:
-            Dictionary with upper, middle, and lower bands or None if calculation fails
+            Dictionary with upper, middle, and lower bands (None values if calculation fails)
         """
         if not self.validate_data(df, period):
-            return None
+            return {
+                'bb_upper': None,
+                'bb_middle': None,
+                'bb_lower': None
+            }
         
         try:
             bb_data = ta.bbands(df['close'], length=period, std=std_dev)
             
             return {
-                'upper': bb_data[f'BBU_{period}_{std_dev}'],
-                'middle': bb_data[f'BBM_{period}_{std_dev}'],
-                'lower': bb_data[f'BBL_{period}_{std_dev}']
+                'bb_upper': bb_data[f'BBU_{period}_{std_dev}'],
+                'bb_middle': bb_data[f'BBM_{period}_{std_dev}'],
+                'bb_lower': bb_data[f'BBL_{period}_{std_dev}']
             }
         except Exception as e:
             self.logger.error(f"Bollinger Bands calculation failed: {e}")
-            return None
+            return {
+                'bb_upper': None,
+                'bb_middle': None,
+                'bb_lower': None
+            }
     
     def calculate_stochastic(self, df: pd.DataFrame, k_period: int = 14, d_period: int = 3) -> Optional[Dict[str, pd.Series]]:
         """
@@ -246,8 +265,8 @@ class TechnicalIndicators:
         try:
             # RSI
             rsi = self.calculate_rsi(df, config.get('rsi_period', 14))
-            if rsi is not None and not rsi.empty:
-                results['rsi'] = float(rsi.iloc[-1]) if not pd.isna(rsi.iloc[-1]) else None
+            if rsi is not None:
+                results['rsi'] = rsi
             
             # MACD
             macd_data = self.calculate_macd(

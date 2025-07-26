@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Dict, List, Tuple, Optional
 import json
 from dataclasses import dataclass
-from src.hybrid_data_fetcher import HybridDataFetcher
+from src.data_fetcher import DataFetcher
 from src.indicators import TechnicalIndicators
 from src.utils import load_config
 
@@ -26,7 +26,7 @@ class StrategicSignal:
 class StrategicAdvisor:
     def __init__(self, config_path: str = "config/config.yaml"):
         self.config = load_config(config_path)
-        self.data_fetcher = HybridDataFetcher()
+        self.data_fetcher = DataFetcher()
         self.indicators = TechnicalIndicators()
         
         # Strategic goals

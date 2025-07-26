@@ -11,7 +11,7 @@ from typing import Dict, Any, List
 from datetime import datetime, timedelta
 
 from src.utils import load_config, setup_logging, load_environment, get_env_variable, validate_config
-from src.hybrid_data_fetcher import HybridDataFetcher
+from src.data_fetcher import DataFetcher
 from src.strategy import AlertStrategy
 from src.alerts import TelegramAlertsManager, AlertsOrchestrator
 
@@ -61,8 +61,8 @@ class CryptoMarketAlertSystem:
             api_key = get_env_variable('COINGECKO_API_KEY', None)
             general_config = self.config.get('general', {})
             
-            # Use hybrid fetcher for better reliability and performance
-            self.data_fetcher = HybridDataFetcher(
+            # Use data fetcher for better reliability and performance
+            self.data_fetcher = DataFetcher(
                 retry_attempts=general_config.get('retry_attempts', 3),
                 retry_delay=general_config.get('retry_delay', 2)
             )

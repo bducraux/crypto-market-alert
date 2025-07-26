@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Final Demo: Complete Strategic System with Hybrid Data Fetcher
+Final Demo: Complete Strategic System with Data Fetcher
 Shows the new reformulated approach with Binance API + Strategic Advisor
 """
 
@@ -24,11 +24,11 @@ def test_complete_system():
     try:
         print("\n🔧 TESTING COMPLETE SYSTEM...")
         
-        # Test hybrid data fetcher
-        print("\n1️⃣ Testing Hybrid Data Fetcher...")
-        from src.hybrid_data_fetcher import HybridDataFetcher
+        # Test data fetcher
+        print("\n1️⃣ Testing Data Fetcher...")
+        from src.data_fetcher import DataFetcher
         
-        fetcher = HybridDataFetcher()
+        fetcher = DataFetcher()
         connections = fetcher.test_connection()
         
         for api, status in connections.items():
@@ -155,7 +155,7 @@ if __name__ == "__main__":
         print("=" * 70)
         
         print("\n✅ SUMMARY:")
-        print("• Hybrid data fetcher eliminates rate limiting")
+        print("• Data fetcher eliminates rate limiting")
         print("• Strategic advisor provides goal-oriented guidance")
         print("• Single consolidated dashboard replaces multiple alerts")
         print("• Focus on BTC/ETH maximization strategy")

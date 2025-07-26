@@ -40,7 +40,7 @@ class TestPartialExitStrategy:
     def strategic_advisor(self, mock_config):
         """Create StrategicAdvisor instance with mocked dependencies"""
         with patch('src.strategic_advisor.load_config', return_value=mock_config):
-            with patch('src.strategic_advisor.HybridDataFetcher'):
+            with patch('src.strategic_advisor.DataFetcher'):
                 advisor = StrategicAdvisor()
                 advisor.indicators = Mock(spec=TechnicalIndicators)
                 return advisor
@@ -271,7 +271,7 @@ class TestEnhancedAltseasonDetection:
         }
         
         with patch('src.strategic_advisor.load_config', return_value=mock_config):
-            with patch('src.strategic_advisor.HybridDataFetcher'):
+            with patch('src.strategic_advisor.DataFetcher'):
                 advisor = StrategicAdvisor()
                 advisor.indicators = Mock(spec=TechnicalIndicators)
                 return advisor

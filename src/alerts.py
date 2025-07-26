@@ -5,6 +5,8 @@ Handles Telegram bot integration and message formatting
 
 import asyncio
 import logging
+import html
+import re
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import telegram
@@ -26,6 +28,42 @@ class TelegramAlertsManager:
         self.chat_id = chat_id
         self.bot = telegram.Bot(token=bot_token)
         self.logger = logging.getLogger(__name__)
+    
+    def _sanitize_message(self, message: str) -> str:
+        """
+        Sanitize message content to prevent HTML injection attacks
+        
+        Args:
+            message: Raw message content
+            
+        Returns:
+            Sanitized message content
+        """
+        if not message:
+            return 'Unknown alert'
+        
+        # Convert to string and escape HTML
+        sanitized = html.escape(str(message))
+        
+        # Remove dangerous event handlers and attributes
+        dangerous_patterns = [
+            r'onerror\s*=',
+            r'onclick\s*=',
+            r'onload\s*=',
+            r'onmouseover\s*=',
+            r'onfocus\s*=',
+            r'onblur\s*=',
+            r'onchange\s*=',
+            r'onsubmit\s*=',
+            r'javascript:',
+            r'vbscript:',
+            r'data:text/html'
+        ]
+        
+        for pattern in dangerous_patterns:
+            sanitized = re.sub(pattern, '', sanitized, flags=re.IGNORECASE)
+        
+        return sanitized
     
     async def send_message(self, message: str, parse_mode: str = 'HTML') -> bool:
         """
@@ -70,6 +108,9 @@ class TelegramAlertsManager:
         coin = alert.get('coin', 'Unknown')
         priority = alert.get('priority', 'medium')
         
+        # Sanitize message content to prevent HTML injection
+        sanitized_message = self._sanitize_message(message)
+        
         # Add priority emoji
         priority_emoji = {
             'high': '🚨',
@@ -82,7 +123,7 @@ class TelegramAlertsManager:
         # Format timestamp
         timestamp = datetime.now().strftime('%H:%M:%S')
         
-        formatted_message = f"{emoji} <b>[{timestamp}] {message}</b>\n"
+        formatted_message = f"{emoji} <b>[{timestamp}] {sanitized_message}</b>\n"
         
         # Add additional details based on alert type
         if alert_type.startswith('price'):
@@ -120,6 +161,15 @@ class TelegramAlertsManager:
                 formatted_message += f"📊 Index: {value}/100\n"
             if classification:
                 formatted_message += f"📝 Status: {classification}\n"
+        
+        # Ensure message doesn't exceed Telegram's 4096 character limit
+        if len(formatted_message) > 4096:
+            # Calculate how much space we need for the truncation notice
+            truncation_notice = "\n\n... (message truncated)"
+            available_space = 4096 - len(truncation_notice)
+            
+            # Truncate the message and add notice
+            formatted_message = formatted_message[:available_space] + truncation_notice
         
         return formatted_message
     

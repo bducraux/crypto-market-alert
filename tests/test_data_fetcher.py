@@ -1,246 +1,512 @@
 """
-Unit tests for data_fetcher module
+Comprehensive test suite for data_fetcher.py module
+Tests Binance and CoinGecko API integration with mocking
 """
 
 import pytest
 import pandas as pd
+from unittest.mock import Mock, patch, AsyncMock
+import sys
+import os
 import requests
-from unittest.mock import Mock, patch, MagicMock
+
+# Add src to path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 from src.data_fetcher import DataFetcher
 
 
 class TestDataFetcher:
-    """Test cases for DataFetcher class"""
+    """Test suite for DataFetcher class"""
     
     @pytest.fixture
-    def data_fetcher(self):
-        """Create a DataFetcher instance for testing"""
-        return DataFetcher(api_key="test_key", retry_attempts=2, retry_delay=1)
+    def fetcher(self):
+        return DataFetcher(retry_attempts=2, retry_delay=1)
     
-    @pytest.fixture
-    def mock_response_data(self):
-        """Mock response data for API calls"""
-        return {
-            'bitcoin': {
-                'usd': 45000.0,
-                'usd_24h_change': 2.5,
-                'usd_market_cap': 850000000000,
-                'usd_24h_vol': 25000000000
-            },
-            'ethereum': {
-                'usd': 3000.0,
-                'usd_24h_change': -1.2,
-                'usd_market_cap': 360000000000,
-                'usd_24h_vol': 15000000000
-            }
-        }
-    
-    @pytest.fixture
-    def mock_ohlc_data(self):
-        """Mock OHLC data for historical prices"""
-        return [
-            [1640995200000, 46000, 47000, 45500, 46500],  # timestamp, open, high, low, close
-            [1641081600000, 46500, 46800, 45800, 46200],
-            [1641168000000, 46200, 46900, 45900, 46700],
-        ]
-    
-    def test_initialization(self):
+    def test_initialization(self, fetcher):
         """Test DataFetcher initialization"""
-        fetcher = DataFetcher(api_key="test", retry_attempts=3, retry_delay=5)
-        
-        assert fetcher.api_key == "test"
-        assert fetcher.retry_attempts == 3
-        assert fetcher.retry_delay == 5
-        assert fetcher.base_url == "https://api.coingecko.com/api/v3"
-        assert fetcher.min_request_interval == 1.2
+        assert fetcher.retry_attempts == 2
+        assert fetcher.retry_delay == 1
+        assert fetcher.binance_base_url == "https://api.binance.com/api/v3"
+        assert fetcher.coingecko_base_url == "https://api.coingecko.com/api/v3"
     
-    @patch('src.data_fetcher.requests.get')
-    def test_make_request_success(self, mock_get, data_fetcher, mock_response_data):
-        """Test successful API request"""
-        # Mock successful response
+    @patch('requests.get')
+    def test_make_binance_request_success(self, mock_get, fetcher):
+        """Test successful Binance API request"""
         mock_response = Mock()
-        mock_response.json.return_value = mock_response_data
-        mock_response.raise_for_status.return_value = None
+        mock_response.status_code = 200
+        mock_response.json.return_value = {'symbol': 'BTCUSDT', 'price': '50000'}
         mock_get.return_value = mock_response
         
-        result = data_fetcher._make_request("https://api.test.com/endpoint")
+        result = fetcher._make_binance_request('/ticker/price', {'symbol': 'BTCUSDT'})
         
-        assert result == mock_response_data
+        assert result == {'symbol': 'BTCUSDT', 'price': '50000'}
         mock_get.assert_called_once()
     
-    @patch('src.data_fetcher.time.sleep')  # Mock sleep to speed up tests
-    @patch('src.data_fetcher.requests.get')
-    def test_make_request_failure(self, mock_get, mock_sleep, data_fetcher):
-        """Test failed API request with retries"""
-        # Mock failed response
-        mock_get.side_effect = requests.exceptions.ConnectionError("Connection error")
-        
-        result = data_fetcher._make_request("https://api.test.com/endpoint")
-        
-        assert result is None
-        assert mock_get.call_count == data_fetcher.retry_attempts
-        # Verify sleep was called for retries (retry_attempts - 1 times)
-        assert mock_sleep.call_count == data_fetcher.retry_attempts - 1
-    
-    @patch('src.data_fetcher.DataFetcher._make_request')
-    def test_get_coin_price_success(self, mock_request, data_fetcher):
-        """Test successful coin price retrieval"""
-        mock_request.return_value = {
-            'bitcoin': {'usd': 45000.0}
-        }
-        
-        price = data_fetcher.get_coin_price('bitcoin')
-        
-        assert price == 45000.0
-        mock_request.assert_called_once()
-    
-    @patch('src.data_fetcher.DataFetcher._make_request')
-    def test_get_coin_price_failure(self, mock_request, data_fetcher):
-        """Test failed coin price retrieval"""
-        mock_request.return_value = None
-        
-        price = data_fetcher.get_coin_price('bitcoin')
-        
-        assert price is None
-    
-    @patch('src.data_fetcher.DataFetcher._make_request')
-    def test_get_multiple_coin_prices(self, mock_request, data_fetcher, mock_response_data):
-        """Test multiple coin price retrieval"""
-        mock_request.return_value = mock_response_data
-        
-        prices = data_fetcher.get_multiple_coin_prices(['bitcoin', 'ethereum'])
-        
-        assert prices == mock_response_data
-        assert 'bitcoin' in prices
-        assert 'ethereum' in prices
-    
-    @patch('src.data_fetcher.DataFetcher._make_request')
-    def test_get_historical_prices_success(self, mock_request, data_fetcher, mock_ohlc_data):
-        """Test successful historical price retrieval"""
-        mock_request.return_value = mock_ohlc_data
-        
-        df = data_fetcher.get_historical_prices('bitcoin', days=30)
-        
-        assert isinstance(df, pd.DataFrame)
-        assert len(df) == 3
-        assert list(df.columns) == ['open', 'high', 'low', 'close']
-        assert df.index.name == 'timestamp'
-    
-    @patch('src.data_fetcher.DataFetcher._make_request')
-    def test_get_historical_prices_failure(self, mock_request, data_fetcher):
-        """Test failed historical price retrieval"""
-        mock_request.return_value = None
-        
-        df = data_fetcher.get_historical_prices('bitcoin', days=30)
-        
-        assert df is None
-    
-    @patch('src.data_fetcher.DataFetcher._make_request')
-    def test_get_btc_dominance_success(self, mock_request, data_fetcher):
-        """Test successful BTC dominance retrieval"""
-        mock_request.return_value = {
-            'data': {
-                'market_cap_percentage': {
-                    'btc': 42.5
-                }
-            }
-        }
-        
-        dominance = data_fetcher.get_btc_dominance()
-        
-        assert dominance == 42.5
-    
-    @patch('src.data_fetcher.DataFetcher._make_request')
-    def test_get_btc_dominance_failure(self, mock_request, data_fetcher):
-        """Test failed BTC dominance retrieval"""
-        mock_request.return_value = None
-        
-        dominance = data_fetcher.get_btc_dominance()
-        
-        assert dominance is None
-    
-    @patch('src.data_fetcher.DataFetcher.get_multiple_coin_prices')
-    def test_get_eth_btc_ratio_success(self, mock_prices, data_fetcher):
-        """Test successful ETH/BTC ratio calculation"""
-        mock_prices.return_value = {
-            'ethereum': {'usd': 3000.0},
-            'bitcoin': {'usd': 45000.0}
-        }
-        
-        ratio = data_fetcher.get_eth_btc_ratio()
-        
-        assert ratio == 3000.0 / 45000.0
-    
-    @patch('src.data_fetcher.DataFetcher.get_multiple_coin_prices')
-    def test_get_eth_btc_ratio_failure(self, mock_prices, data_fetcher):
-        """Test failed ETH/BTC ratio calculation"""
-        mock_prices.return_value = {}
-        
-        ratio = data_fetcher.get_eth_btc_ratio()
-        
-        assert ratio is None
-    
-    @patch('src.data_fetcher.requests.get')
-    def test_get_fear_greed_index_success(self, mock_get, data_fetcher):
-        """Test successful Fear & Greed Index retrieval"""
+    @patch('requests.get')
+    def test_make_binance_request_failure(self, mock_get, fetcher):
+        """Test failed Binance API request"""
         mock_response = Mock()
-        mock_response.json.return_value = {
-            'data': [{
-                'value': '25',
-                'value_classification': 'Fear',
-                'timestamp': '1641024000'
-            }]
-        }
-        mock_response.raise_for_status.return_value = None
+        mock_response.status_code = 429  # Rate limit
         mock_get.return_value = mock_response
         
-        fear_greed = data_fetcher.get_fear_greed_index()
+        result = fetcher._make_binance_request('/ticker/price', {'symbol': 'BTCUSDT'})
         
-        assert fear_greed['value'] == 25
-        assert fear_greed['value_classification'] == 'Fear'
+        assert result is None
     
-    @patch('src.data_fetcher.requests.get')
-    def test_get_fear_greed_index_failure(self, mock_get, data_fetcher):
-        """Test failed Fear & Greed Index retrieval"""
-        mock_get.side_effect = Exception("API error")
+    @patch('requests.get')
+    def test_make_binance_request_exception(self, mock_get, fetcher):
+        """Test Binance API request with exception"""
+        mock_get.side_effect = requests.exceptions.RequestException("Network error")
         
-        fear_greed = data_fetcher.get_fear_greed_index()
+        result = fetcher._make_binance_request('/ticker/price', {'symbol': 'BTCUSDT'})
         
-        assert fear_greed is None
+        assert result is None
     
-    @patch('src.data_fetcher.DataFetcher.get_multiple_coin_prices')
-    @patch('src.data_fetcher.DataFetcher.get_historical_prices')
-    def test_get_coin_market_data_batch(self, mock_historical, mock_prices, data_fetcher, mock_response_data):
-        """Test batch coin market data retrieval"""
-        mock_prices.return_value = mock_response_data
-        mock_historical.return_value = pd.DataFrame({
-            'open': [46000, 46500],
-            'high': [47000, 46800],
-            'low': [45500, 45800],
-            'close': [46500, 46200]
+    @patch('requests.get')
+    def test_make_coingecko_request_success(self, mock_get, fetcher):
+        """Test successful CoinGecko API request"""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {'bitcoin': {'usd': 50000}}
+        mock_get.return_value = mock_response
+        
+        result = fetcher._make_coingecko_request('/simple/price', {
+            'ids': 'bitcoin',
+            'vs_currencies': 'usd'
         })
         
-        result = data_fetcher.get_coin_market_data_batch(['bitcoin', 'ethereum'])
+        assert result == {'bitcoin': {'usd': 50000}}
+        mock_get.assert_called_once()
+    
+    @patch('requests.get')
+    def test_make_coingecko_request_rate_limit(self, mock_get, fetcher):
+        """Test CoinGecko API request with rate limiting"""
+        mock_response = Mock()
+        mock_response.status_code = 429
+        mock_get.return_value = mock_response
+        
+        result = fetcher._make_coingecko_request('/simple/price', {
+            'ids': 'bitcoin',
+            'vs_currencies': 'usd'
+        })
+        
+        assert result is None
+    
+    @patch.object(DataFetcher, '_make_binance_request')
+    def test_get_binance_price_success(self, mock_request, fetcher):
+        """Test successful Binance price retrieval"""
+        mock_request.return_value = {'symbol': 'BTCUSDT', 'price': '50000.00'}
+        
+        result = fetcher.get_binance_price('BTCUSDT')
+        
+        assert result == {'symbol': 'BTCUSDT', 'price': '50000.00'}
+        mock_request.assert_called_once_with('ticker/price', {'symbol': 'BTCUSDT'})
+    
+    @patch.object(DataFetcher, '_make_binance_request')
+    def test_get_binance_price_failure(self, mock_request, fetcher):
+        """Test failed Binance price retrieval"""
+        mock_request.return_value = None
+        
+        result = fetcher.get_binance_price('INVALID')
+        
+        assert result is None
+    
+    @patch.object(DataFetcher, '_make_binance_request')
+    def test_get_binance_historical_data_success(self, mock_request, fetcher):
+        """Test successful Binance historical data retrieval"""
+        mock_klines = [
+            [1609459200000, "29000", "30000", "28000", "29500", "1000", 1609462800000, "29250000", 100, "500", "14625000", "0"],
+            [1609462800000, "29500", "31000", "29000", "30000", "1200", 1609466400000, "36000000", 120, "600", "18000000", "0"]
+        ]
+        mock_request.return_value = mock_klines
+        
+        result = fetcher.get_binance_historical_data('BTCUSDT', '1d', 2)
+        
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == 2
+        assert 'open' in result.columns
+        assert 'close' in result.columns
+        assert 'high' in result.columns
+        assert 'low' in result.columns
+        assert 'volume' in result.columns
+    
+    @patch.object(DataFetcher, '_make_binance_request')
+    def test_get_binance_historical_data_failure(self, mock_request, fetcher):
+        """Test failed Binance historical data retrieval"""
+        mock_request.return_value = None
+        
+        result = fetcher.get_binance_historical_data('INVALID', '1d', 100)
+        
+        assert result is None
+    
+    @patch.object(DataFetcher, '_make_coingecko_request')
+    def test_get_coin_market_data_batch_success(self, mock_request, fetcher):
+        """Test successful CoinGecko batch data retrieval"""
+        mock_response = {
+            'bitcoin': {
+                'usd': 50000,
+                'usd_market_cap': 1000000000,
+                'usd_24h_vol': 50000000,
+                'usd_24h_change': 5.5
+            },
+            'ethereum': {
+                'usd': 3000,
+                'usd_market_cap': 400000000,
+                'usd_24h_vol': 20000000,
+                'usd_24h_change': -2.1
+            }
+        }
+        mock_request.return_value = mock_response
+        
+        result = fetcher.get_coin_market_data_batch(['bitcoin', 'ethereum'])
         
         assert 'bitcoin' in result
         assert 'ethereum' in result
-        assert 'historical' in result['bitcoin']
-        assert isinstance(result['bitcoin']['historical'], pd.DataFrame)
+        assert result['bitcoin']['usd'] == 50000
+        assert result['ethereum']['usd'] == 3000
     
-    @patch('src.data_fetcher.DataFetcher.get_coin_price')
-    def test_validate_coin_id_success(self, mock_price, data_fetcher):
-        """Test successful coin ID validation"""
-        mock_price.return_value = 45000.0
+    @patch.object(DataFetcher, '_make_coingecko_request')
+    def test_get_coin_market_data_batch_with_binance_fallback(self, mock_cg_request, fetcher):
+        """Test CoinGecko batch data with Binance fallback"""
+        # CoinGecko fails
+        mock_cg_request.return_value = None
         
-        is_valid = data_fetcher.validate_coin_id('bitcoin')
-        
-        assert is_valid is True
+        with patch.object(fetcher, 'get_binance_price') as mock_binance:
+            mock_binance.return_value = {'price': '50000.00'}
+            
+            result = fetcher.get_coin_market_data_batch(['bitcoin'])
+            
+            # Should get data from Binance fallback
+            assert 'bitcoin' in result
+            assert result['bitcoin']['usd'] == 50000.00
+            mock_binance.assert_called()
     
-    @patch('src.data_fetcher.DataFetcher.get_coin_price')
-    def test_validate_coin_id_failure(self, mock_price, data_fetcher):
-        """Test failed coin ID validation"""
-        mock_price.return_value = None
+    @patch.object(DataFetcher, '_make_coingecko_request')
+    def test_get_btc_dominance_success(self, mock_request, fetcher):
+        """Test successful BTC dominance retrieval"""
+        mock_response = {
+            'data': {
+                'market_cap_percentage': {
+                    'btc': 65.5
+                }
+            }
+        }
+        mock_request.return_value = mock_response
         
-        is_valid = data_fetcher.validate_coin_id('invalid_coin')
+        result = fetcher.get_btc_dominance()
         
-        assert is_valid is False
+        assert result == 65.5
+    
+    @patch.object(DataFetcher, '_make_coingecko_request')
+    def test_get_btc_dominance_failure(self, mock_request, fetcher):
+        """Test failed BTC dominance retrieval"""
+        mock_request.return_value = None
+        
+        result = fetcher.get_btc_dominance()
+        
+        assert result is None
+    
+    @patch.object(DataFetcher, 'get_coin_market_data_batch')
+    def test_get_eth_btc_ratio_success(self, mock_batch, fetcher):
+        """Test successful ETH/BTC ratio calculation"""
+        mock_batch.return_value = {
+            'ethereum': {'usd': 3000},
+            'bitcoin': {'usd': 60000}
+        }
+        
+        result = fetcher.get_eth_btc_ratio()
+        
+        assert result == 0.05  # 3000 / 60000
+    
+    @patch.object(DataFetcher, 'get_coin_market_data_batch')
+    def test_get_eth_btc_ratio_failure(self, mock_batch, fetcher):
+        """Test failed ETH/BTC ratio calculation"""
+        mock_batch.return_value = None
+        
+        result = fetcher.get_eth_btc_ratio()
+        
+        assert result is None
+    
+    @patch('requests.get')
+    def test_get_fear_greed_index_success(self, mock_get, fetcher):
+        """Test successful Fear & Greed index retrieval"""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            'data': [{
+                'value': '75',
+                'value_classification': 'Greed',
+                'timestamp': '1609459200'
+            }]
+        }
+        mock_get.return_value = mock_response
+        
+        result = fetcher.get_fear_greed_index()
+        
+        assert result['value'] == 75
+        assert result['classification'] == 'Greed'
+        assert 'timestamp' in result
+    
+    @patch('requests.get')
+    def test_get_fear_greed_index_failure(self, mock_get, fetcher):
+        """Test failed Fear & Greed index retrieval"""
+        mock_response = Mock()
+        mock_response.status_code = 500
+        mock_get.return_value = mock_response
+        
+        result = fetcher.get_fear_greed_index()
+        
+        assert result is None
+    
+    @patch.object(DataFetcher, 'get_btc_dominance')
+    @patch.object(DataFetcher, 'get_coin_market_data_batch')
+    def test_get_market_cap_data_success(self, mock_batch, mock_dominance, fetcher):
+        """Test successful market cap data retrieval"""
+        mock_dominance.return_value = 65.5
+        mock_batch.return_value = {
+            'bitcoin': {'usd_market_cap': 1000000000},
+            'ethereum': {'usd_market_cap': 400000000}
+        }
+        
+        result = fetcher.get_market_cap_data()
+        
+        assert result['btc_dominance'] == 65.5
+        assert result['btc_market_cap'] == 1000000000
+        assert result['eth_market_cap'] == 400000000
+        assert result['total_market_cap'] > 0
+    
+    def test_validate_coin_id_valid(self, fetcher):
+        """Test coin ID validation for valid coins"""
+        assert fetcher.validate_coin_id('bitcoin') is True
+        assert fetcher.validate_coin_id('ethereum') is True
+        assert fetcher.validate_coin_id('binancecoin') is True
+    
+    def test_validate_coin_id_invalid(self, fetcher):
+        """Test coin ID validation for invalid coins"""
+        assert fetcher.validate_coin_id('') is False
+        assert fetcher.validate_coin_id(None) is False
+        assert fetcher.validate_coin_id('invalid_coin_12345') is False
+    
+    def test_get_supported_coins(self, fetcher):
+        """Test getting list of supported coins"""
+        coins = fetcher.get_supported_coins()
+        
+        assert isinstance(coins, list)
+        assert 'bitcoin' in coins
+        assert 'ethereum' in coins
+        assert len(coins) > 0
+    
+    @patch.object(DataFetcher, 'get_binance_price')
+    @patch.object(DataFetcher, 'get_coin_market_data_batch')
+    def test_connection_test_success(self, mock_cg_batch, mock_binance, fetcher):
+        """Test successful connection test"""
+        mock_binance.return_value = {'price': '50000'}
+        mock_cg_batch.return_value = {'bitcoin': {'usd': 50000}}
+        
+        with patch.object(fetcher, 'get_fear_greed_index', return_value={'value': 50}):
+            result = fetcher.test_connection()
+            
+            assert result['binance'] is True
+            assert result['coingecko'] is True
+            assert result['fear_greed'] is True
+    
+    @patch.object(DataFetcher, 'get_binance_price')
+    @patch.object(DataFetcher, 'get_coin_market_data_batch')
+    def test_connection_test_partial_failure(self, mock_cg_batch, mock_binance, fetcher):
+        """Test connection test with partial failures"""
+        mock_binance.return_value = None  # Binance fails
+        mock_cg_batch.return_value = {'bitcoin': {'usd': 50000}}  # CoinGecko works
+        
+        with patch.object(fetcher, 'get_fear_greed_index', return_value=None):  # Fear & Greed fails
+            result = fetcher.test_connection()
+            
+            assert result['binance'] is False
+            assert result['coingecko'] is True
+            assert result['fear_greed'] is False
+
+
+class TestDataFetcherIntegration:
+    """Integration tests for DataFetcher with realistic scenarios"""
+    
+    @pytest.fixture
+    def fetcher(self):
+        return DataFetcher()
+    
+    @patch.object(DataFetcher, '_make_binance_request')
+    @patch.object(DataFetcher, '_make_coingecko_request')
+    def test_crypto_market_crash_scenario(self, mock_cg, mock_binance, fetcher):
+        """Test data fetching during market crash scenario"""
+        # Simulate extreme market conditions
+        crash_data = {
+            'bitcoin': {'usd': 20000, 'usd_24h_change': -15.5},
+            'ethereum': {'usd': 1200, 'usd_24h_change': -18.2}
+        }
+        mock_cg.return_value = crash_data
+        mock_binance.return_value = {'price': '20000.00'}
+        
+        result = fetcher.get_coin_market_data_batch(['bitcoin', 'ethereum'])
+        
+        assert result['bitcoin']['usd'] == 20000
+        assert result['bitcoin']['usd_24h_change'] == -15.5
+        assert result['ethereum']['usd_24h_change'] == -18.2
+    
+    @patch.object(DataFetcher, '_make_coingecko_request')
+    def test_altseason_scenario(self, mock_cg, fetcher):
+        """Test data fetching during altseason scenario"""
+        # Simulate altseason with low BTC dominance
+        altseason_data = {
+            'data': {
+                'market_cap_percentage': {
+                    'btc': 38.5,  # Very low BTC dominance
+                    'eth': 18.2
+                }
+            }
+        }
+        mock_cg.return_value = altseason_data
+        
+        btc_dominance = fetcher.get_btc_dominance()
+        
+        assert btc_dominance == 38.5
+        # This should trigger altseason alerts in the main system
+    
+    @patch.object(DataFetcher, '_make_binance_request')
+    def test_high_volatility_scenario(self, mock_binance, fetcher):
+        """Test historical data during high volatility"""
+        # Simulate high volatility klines data
+        volatile_klines = [
+            [1609459200000, "50000", "55000", "45000", "52000", "2000", 1609462800000, "100000000", 200, "1000", "50000000", "0"],
+            [1609462800000, "52000", "48000", "44000", "46000", "2500", 1609466400000, "115000000", 250, "1250", "57500000", "0"],
+            [1609466400000, "46000", "51000", "42000", "49000", "3000", 1609470000000, "140000000", 300, "1500", "70000000", "0"]
+        ]
+        mock_binance.return_value = volatile_klines
+        
+        result = fetcher.get_binance_historical_data('BTCUSDT', '1h', 3)
+        
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == 3
+        # Check for high volatility indicators
+        price_range = result['high'].max() - result['low'].min()
+        assert price_range > 10000  # High volatility
+    
+    @patch('requests.get')
+    def test_extreme_fear_scenario(self, mock_get, fetcher):
+        """Test Fear & Greed index during extreme fear"""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            'data': [{
+                'value': '8',  # Extreme Fear
+                'value_classification': 'Extreme Fear',
+                'timestamp': '1609459200'
+            }]
+        }
+        mock_get.return_value = mock_response
+        
+        result = fetcher.get_fear_greed_index()
+        
+        assert result['value'] == 8
+        assert result['classification'] == 'Extreme Fear'
+        # This should trigger buying opportunity alerts
+    
+    @patch('requests.get')
+    def test_extreme_greed_scenario(self, mock_get, fetcher):
+        """Test Fear & Greed index during extreme greed"""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            'data': [{
+                'value': '92',  # Extreme Greed
+                'value_classification': 'Extreme Greed',
+                'timestamp': '1609459200'
+            }]
+        }
+        mock_get.return_value = mock_response
+        
+        result = fetcher.get_fear_greed_index()
+        
+        assert result['value'] == 92
+        assert result['classification'] == 'Extreme Greed'
+        # This should trigger selling/caution alerts
+    
+    @patch.object(DataFetcher, 'get_coin_market_data_batch')
+    def test_eth_btc_ratio_bull_market(self, mock_batch, fetcher):
+        """Test ETH/BTC ratio during ETH bull run"""
+        # ETH outperforming BTC
+        mock_batch.return_value = {
+            'ethereum': {'usd': 4500},
+            'bitcoin': {'usd': 50000}
+        }
+        
+        ratio = fetcher.get_eth_btc_ratio()
+        
+        assert ratio == 0.09  # High ratio indicates ETH strength
+        # This should contribute to altseason detection
+
+
+class TestDataFetcherErrorHandling:
+    """Test error handling and edge cases"""
+    
+    @pytest.fixture
+    def fetcher(self):
+        return DataFetcher(retry_attempts=1, retry_delay=0.1)
+    
+    @patch('requests.get')
+    def test_network_timeout_handling(self, mock_get, fetcher):
+        """Test handling of network timeouts"""
+        mock_get.side_effect = requests.exceptions.Timeout("Request timeout")
+        
+        result = fetcher._make_binance_request('/ticker/price', {'symbol': 'BTCUSDT'})
+        
+        assert result is None
+    
+    @patch('requests.get')
+    def test_json_decode_error_handling(self, mock_get, fetcher):
+        """Test handling of JSON decode errors"""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.side_effect = ValueError("Invalid JSON")
+        mock_get.return_value = mock_response
+        
+        result = fetcher._make_coingecko_request('/simple/price', {})
+        
+        assert result is None
+    
+    @patch.object(DataFetcher, '_make_binance_request')
+    def test_malformed_klines_data_handling(self, mock_request, fetcher):
+        """Test handling of malformed klines data"""
+        # Missing fields in klines data
+        malformed_klines = [
+            [1609459200000, "50000", "55000"],  # Missing fields
+            ["invalid", "50000", "55000", "45000", "52000", "2000"]  # Invalid timestamp
+        ]
+        mock_request.return_value = malformed_klines
+        
+        result = fetcher.get_binance_historical_data('BTCUSDT', '1d', 2)
+        
+        # Should handle gracefully and return None or empty DataFrame
+        assert result is None or result.empty
+    
+    def test_empty_coin_list_handling(self, fetcher):
+        """Test handling of empty coin list"""
+        result = fetcher.get_coin_market_data_batch([])
+        
+        assert result == {}
+    
+    @patch.object(DataFetcher, '_make_coingecko_request')
+    def test_partial_data_handling(self, mock_request, fetcher):
+        """Test handling of partial data responses"""
+        # Some coins missing from response
+        mock_request.return_value = {
+            'bitcoin': {'usd': 50000}
+            # ethereum missing
+        }
+        
+        result = fetcher.get_coin_market_data_batch(['bitcoin', 'ethereum'])
+        
+        assert 'bitcoin' in result
+        # Should handle missing ethereum gracefully
+
+
+if __name__ == '__main__':
+    pytest.main([__file__])
