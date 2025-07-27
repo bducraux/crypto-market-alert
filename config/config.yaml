@@ -2,154 +2,181 @@ coins:
 - symbol: bitcoin
   name: BTC
   coingecko_id: bitcoin
-  avg_price: 18355.268  # Preço médio de compra
+  avg_price: 18355.268
   alerts:
     price_above: 125000
     price_below: 80000
     rsi_oversold: 30
     rsi_overbought: 70
+  current_amount: 0.54163911
 - symbol: ethereum
   name: ETH
   coingecko_id: ethereum
-  avg_price: 354.572  # Preço médio de compra
+  avg_price: 354.572
   alerts:
     price_above: 5000
     price_below: 2000
     rsi_oversold: 30
     rsi_overbought: 70
+  current_amount: 7.41969135
 - symbol: binancecoin
   name: BNB
   coingecko_id: binancecoin
-  avg_price: 362.83  # Preço médio de compra
+  avg_price: 362.83
   alerts:
     price_above: 800
     price_below: 450
     rsi_oversold: 25
     rsi_overbought: 75
+  current_amount: 5.79863644
 - symbol: chainlink
   name: LINK
   coingecko_id: chainlink
-  avg_price: 14.53  # Preço médio de compra
+  avg_price: 14.53
   alerts:
     price_above: 25
     price_below: 10
     rsi_oversold: 25
     rsi_overbought: 75
+  current_amount: 181.02
 - symbol: ondo
   name: ONDO
   coingecko_id: ondo-finance
-  avg_price: 0.8  # Preço médio de compra
+  avg_price: 0.8
   alerts:
     price_above: 1.5
     price_below: 0.6
     rsi_oversold: 25
     rsi_overbought: 75
+  current_amount: 3282.0473
 - symbol: matic
   name: MATIC
   coingecko_id: matic-network
-  avg_price: 1.196  # Preço médio de compra
+  avg_price: 1.196
   alerts:
     price_above: 1.5
     price_below: 0.5
     rsi_oversold: 25
     rsi_overbought: 75
+  current_amount: 5862
 - symbol: cardano
   name: ADA
   coingecko_id: cardano
-  avg_price: 1.376  # Preço médio de compra
+  avg_price: 1.376
   alerts:
     price_above: 2.0
     price_below: 0.5
     rsi_oversold: 25
     rsi_overbought: 75
+  current_amount: 928.249848
 - symbol: tron
   name: TRX
   coingecko_id: tron
-  avg_price: 0.058  # Preço médio de compra
+  avg_price: 0.058
   alerts:
     price_above: 0.15
     price_below: 0.07
     rsi_oversold: 25
     rsi_overbought: 75
+  current_amount: 2378
 - symbol: cosmos
   name: ATOM
   coingecko_id: cosmos
-  avg_price: 12.376  # Preço médio de compra
+  avg_price: 12.376
   alerts:
     price_above: 20
     price_below: 7
     rsi_oversold: 25
     rsi_overbought: 75
+  current_amount: 80.800688
 - symbol: lido-dao
   name: LDO
   coingecko_id: lido-dao
-  avg_price: 3.376  # Preço médio de compra
+  avg_price: 3.376
   alerts:
     price_above: 4
     price_below: 1
     rsi_oversold: 25
     rsi_overbought: 75
+  current_amount: 296.2
 - symbol: tether
   name: USDT
   coingecko_id: tether
-  avg_price: 1.176  # Preço médio de compra
+  avg_price: 1.176
   alerts:
     price_above: 1.05
     price_below: 0.95
     rsi_oversold: 25
     rsi_overbought: 75
+  current_amount: 332.8090718
 - symbol: stacks
   name: STX
   coingecko_id: blockstack
-  avg_price: 2.796  # Preço médio de compra
+  avg_price: 2.796
   alerts:
     price_above: 4
     price_below: 1.5
     rsi_oversold: 25
     rsi_overbought: 75
+  current_amount: 357.5
 - symbol: render-token
   name: RNDR
   coingecko_id: render-token
-  avg_price: 11.6  # Preço médio de compra
+  avg_price: 11.6
   alerts:
     price_above: 15
     price_below: 5
     rsi_oversold: 25
     rsi_overbought: 75
+  current_amount: 82.37
 - symbol: pancakeswap-token
   name: CAKE
   coingecko_id: pancakeswap-token
-  avg_price: 9.042  # Preço médio de compra
+  avg_price: 9.042
   alerts:
     price_above: 6
     price_below: 2
     rsi_oversold: 25
     rsi_overbought: 75
+  current_amount: 67.93758
 - symbol: fetch-ai
   name: FET
   coingecko_id: fetch-ai
-  avg_price: 2.956  # Preço médio de compra
+  avg_price: 2.956
   alerts:
     price_above: 4
     price_below: 1.2
     rsi_oversold: 25
     rsi_overbought: 75
+  current_amount: 102
 - symbol: pyth-network
   name: PYTH
   coingecko_id: pyth-network
-  avg_price: 0.684  # Preço médio de compra
+  avg_price: 0.684
   alerts:
     price_above: 1.5
     price_below: 0.4
     rsi_oversold: 25
     rsi_overbought: 75
+  current_amount: 438.5
 - symbol: shiba-inu
   name: SHIB
   coingecko_id: shiba-inu
-  avg_price: 0.00001  # Preço médio de compra
+  avg_price: 1.0e-05
   alerts:
-    price_above: 0.00002
-    price_below: 0.000005
+    price_above: 2.0e-05
+    price_below: 5.0e-06
+    rsi_oversold: 25
+    rsi_overbought: 75
+  current_amount: 11599531.18
+- symbol: chz
+  name: CHZ
+  coingecko_id: ''
+  avg_price: 0
+  current_amount: 385
+  alerts:
+    price_above: 0
+    price_below: 0
     rsi_oversold: 25
     rsi_overbought: 75
 indicators:

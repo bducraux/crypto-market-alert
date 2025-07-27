@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 import json
 import threading
+from .utils import get_env_variable
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +25,15 @@ class DataFetcher:
     def __init__(self, retry_attempts: int = 3, retry_delay: int = 2):
         self.binance_base_url = "https://api.binance.com/api/v3"
         self.coingecko_base_url = "https://api.coingecko.com/api/v3"
+        self.coinmarketcap_base_url = "https://pro-api.coinmarketcap.com/v1"
         self.retry_attempts = retry_attempts
         self.retry_delay = retry_delay
+        
+        # Load API keys from environment
+        try:
+            self.coinmarketcap_api_key = get_env_variable('COINMARKETCAP_API_KEY')
+        except ValueError:
+            self.coinmarketcap_api_key = None
         
         # CoinGecko rate limiting and caching
         self._coingecko_cache = {}
@@ -33,6 +41,13 @@ class DataFetcher:
         self._last_coingecko_request = 0
         self._coingecko_min_interval = 1.2  # Minimum 1.2 seconds between requests
         self._coingecko_lock = threading.Lock()
+        
+        # CoinMarketCap rate limiting and caching
+        self._coinmarketcap_cache = {}
+        self._coinmarketcap_cache_ttl = 300  # Cache for 5 minutes (CMC has monthly limits)
+        self._last_coinmarketcap_request = 0
+        self._coinmarketcap_min_interval = 2.0  # Minimum 2 seconds between requests
+        self._coinmarketcap_lock = threading.Lock()
         
         # Mapeamento de CoinGecko ID para símbolo Binance
         self.coin_mapping = {
@@ -47,7 +62,7 @@ class DataFetcher:
             'tron': 'TRXUSDT',
             'cosmos': 'ATOMUSDT',
             'lido-dao': 'LDOUSDT',
-            'tether': None,
+            'tether': 'USDT',
             'blockstack': 'STXUSDT',
             'stacks': 'STXUSDT',
             'render-token': 'RNDRUSDT',
@@ -57,7 +72,7 @@ class DataFetcher:
             'shiba-inu': 'SHIBUSDT'
         }
         
-        logger.info("Data Fetcher initialized (Binance + CoinGecko)")
+        logger.info("Data Fetcher initialized")
     
     def _make_binance_request(self, endpoint: str, params: Dict = None) -> Optional[Dict]:
         """Make request to Binance API with retry logic"""
@@ -156,6 +171,86 @@ class DataFetcher:
                     time.sleep(self.retry_delay * 2)  # Longer delay for CoinGecko
                 else:
                     logger.error(f"All retry attempts failed for CoinGecko URL: {url}")
+        
+        return None
+    
+    def _make_coinmarketcap_request(self, endpoint: str, params: Dict = None) -> Optional[Dict]:
+        """Make request to CoinMarketCap API with caching, rate limiting and retry logic"""
+        if not self.coinmarketcap_api_key:
+            logger.warning("CoinMarketCap API key not available, skipping request")
+            return None
+            
+        url = f"{self.coinmarketcap_base_url}/{endpoint}"
+        
+        # Create cache key from URL and params
+        cache_key = f"{url}?{requests.compat.urlencode(params or {})}"
+        
+        with self._coinmarketcap_lock:
+            # Check cache first
+            current_time = time.time()
+            if cache_key in self._coinmarketcap_cache:
+                cached_data, cached_time = self._coinmarketcap_cache[cache_key]
+                if current_time - cached_time < self._coinmarketcap_cache_ttl:
+                    logger.debug(f"Using cached CoinMarketCap data for {endpoint}")
+                    return cached_data
+            
+            # Rate limiting - ensure minimum interval between requests
+            time_since_last = current_time - self._last_coinmarketcap_request
+            if time_since_last < self._coinmarketcap_min_interval:
+                sleep_time = self._coinmarketcap_min_interval - time_since_last
+                logger.debug(f"Rate limiting: sleeping {sleep_time:.2f}s before CoinMarketCap request")
+                time.sleep(sleep_time)
+            
+            self._last_coinmarketcap_request = time.time()
+        
+        headers = {
+            'X-CMC_PRO_API_KEY': self.coinmarketcap_api_key,
+            'Accept': 'application/json'
+        }
+        
+        for attempt in range(self.retry_attempts):
+            try:
+                response = requests.get(url, params=params, headers=headers, timeout=15)
+                
+                # Check status code before processing response
+                if response.status_code == 429:
+                    # Exponential backoff for rate limiting
+                    backoff_time = (2 ** attempt) * 10  # 10, 20, 40 seconds
+                    logger.warning(f"CoinMarketCap rate limit hit (429), backing off for {backoff_time}s")
+                    time.sleep(backoff_time)
+                    continue
+                elif response.status_code != 200:
+                    logger.warning(f"CoinMarketCap request failed with status code {response.status_code}")
+                    if attempt < self.retry_attempts - 1:
+                        time.sleep(self.retry_delay * 3)  # Longer delay for CoinMarketCap
+                        continue
+                    else:
+                        return None
+                
+                response.raise_for_status()
+                
+                # Handle JSON decode errors
+                try:
+                    data = response.json()
+                    
+                    # Cache the successful response
+                    with self._coinmarketcap_lock:
+                        self._coinmarketcap_cache[cache_key] = (data, time.time())
+                    
+                    return data
+                except ValueError as e:
+                    logger.error(f"Invalid JSON response from CoinMarketCap: {e}")
+                    if attempt < self.retry_attempts - 1:
+                        time.sleep(self.retry_delay * 3)
+                    else:
+                        return None
+                
+            except requests.exceptions.RequestException as e:
+                logger.warning(f"CoinMarketCap request failed (attempt {attempt + 1}/{self.retry_attempts}): {e}")
+                if attempt < self.retry_attempts - 1:
+                    time.sleep(self.retry_delay * 3)  # Longer delay for CoinMarketCap
+                else:
+                    logger.error(f"All retry attempts failed for CoinMarketCap URL: {url}")
         
         return None
     
@@ -303,7 +398,7 @@ class DataFetcher:
                     
                     if test_format:
                         # The data is already in the format we need (used in tests)
-                        logger.info("Using test-formatted CoinGecko data")
+                        logger.info("Using CoinGecko data format")
                         return cg_data
                     
                     # Add market cap data from CoinGecko to existing Binance data
@@ -354,17 +449,32 @@ class DataFetcher:
         return result
     
     def get_btc_dominance(self) -> Optional[float]:
-        """Get BTC dominance from CoinGecko (unique metric)"""
+        """Get BTC dominance from CoinGecko with CoinMarketCap fallback"""
+        # Try CoinGecko first
         try:
             data = self._make_coingecko_request("global")
             if data and 'data' in data:
                 dominance = data['data'].get('market_cap_percentage', {}).get('btc')
                 if dominance:
-                    logger.debug(f"BTC Dominance: {dominance:.2f}%")
+                    logger.debug(f"BTC Dominance from CoinGecko: {dominance:.2f}%")
                     return float(dominance)
         except Exception as e:
-            logger.error(f"Error getting BTC dominance: {e}")
+            logger.warning(f"CoinGecko BTC dominance request failed: {e}")
         
+        # Fallback to CoinMarketCap
+        logger.info("Falling back to CoinMarketCap for BTC dominance")
+        try:
+            # CoinMarketCap global metrics endpoint
+            data = self._make_coinmarketcap_request("global-metrics/quotes/latest")
+            if data and 'data' in data:
+                btc_dominance = data['data'].get('btc_dominance')
+                if btc_dominance:
+                    logger.debug(f"BTC Dominance from CoinMarketCap: {btc_dominance:.2f}%")
+                    return float(btc_dominance)
+        except Exception as e:
+            logger.error(f"CoinMarketCap BTC dominance request failed: {e}")
+        
+        logger.error("Failed to get BTC dominance from both CoinGecko and CoinMarketCap")
         return None
     
     def get_eth_btc_ratio(self) -> Optional[float]:

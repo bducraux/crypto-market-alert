@@ -184,6 +184,17 @@ class TelegramAlertsManager:
         Returns:
             Formatted summary message
         """
+        # Check if we have the new structured report format
+        structured_report = summary.get('structured_report')
+        if structured_report:
+            # Use the new structured format
+            timestamp = summary.get('timestamp', datetime.now()).strftime('%Y-%m-%d %H:%M:%S')
+            message = f"📊 <b>Market Summary - {timestamp}</b>\n\n"
+            message += f"<pre>{structured_report}</pre>\n\n"
+            message += f"🚨 <b>Active Alerts: {alerts_count}</b>\n"
+            return message
+        
+        # Fallback to original format for backward compatibility
         timestamp = summary.get('timestamp', datetime.now()).strftime('%Y-%m-%d %H:%M:%S')
         
         message = f"📊 <b>Market Summary - {timestamp}</b>\n\n"

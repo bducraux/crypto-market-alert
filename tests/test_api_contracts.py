@@ -9,6 +9,7 @@ import requests
 import sys
 import os
 from typing import Dict, Any
+from unittest.mock import patch, Mock
 
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -19,7 +20,7 @@ from src.data_fetcher import DataFetcher
 @pytest.mark.integration
 @pytest.mark.network
 class TestBinanceAPIContract:
-    """Test Binance API contract validation"""
+    """Test Binance API contract validation - using mocks to avoid rate limits"""
     
     @pytest.fixture(scope="class")
     def data_fetcher(self):
@@ -28,10 +29,12 @@ class TestBinanceAPIContract:
     
     def test_binance_ticker_price_contract(self, data_fetcher):
         """Verify Binance ticker/price API returns expected data structure"""
-        # Test with a stable, well-known trading pair
-        result = data_fetcher.get_binance_price('BTCUSDT')
+        # Mock Binance API response to avoid rate limits
+        mock_response = {'symbol': 'BTCUSDT', 'price': '45000.50'}
         
-        if result:  # Only test if API is available
+        with patch.object(data_fetcher, '_make_binance_request', return_value=mock_response):
+            result = data_fetcher.get_binance_price('BTCUSDT')
+            
             # Validate required fields are present
             assert 'symbol' in result, "Missing required field: symbol"
             assert 'price' in result, "Missing required field: price"
@@ -48,8 +51,6 @@ class TestBinanceAPIContract:
             price_float = float(result['price'])
             assert price_float > 0, f"Price should be positive, got {price_float}"
             assert price_float < 1000000, f"Price seems unrealistic: {price_float}"
-        else:
-            pytest.skip("Binance API not available - skipping contract test")
     
     def test_binance_klines_contract(self, data_fetcher):
         """Verify Binance klines API returns expected OHLCV data structure"""

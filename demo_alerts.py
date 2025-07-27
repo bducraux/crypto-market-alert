@@ -26,7 +26,7 @@ async def demonstrate_professional_alerts():
     config = load_config()
     
     # Inicializar componentes
-    data_fetcher = DataFetcher(api_key=os.getenv('COINGECKO_API_KEY'))
+    data_fetcher = DataFetcher()
     strategy = AlertStrategy(config)
     
     print("📊 Coletando dados do mercado...")

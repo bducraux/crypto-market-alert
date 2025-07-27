@@ -919,52 +919,63 @@ class StrategicAdvisor:
             if btc_price == 0 or eth_price == 0:
                 return {}
             
-            # Calculate total altcoin value using a more realistic approach
-            # Instead of fixed quantities, use a percentage-based approach
+            # Calculate total altcoin value using ACTUAL holdings from config
+            # This should match the logic in strategy.get_market_summary()
             total_altcoin_value_usd = 0
             
-            # Get config to check avg_price vs current_price for each altcoin
-            altcoin_configs = [coin for coin in self.config['coins'] 
-                             if coin['coingecko_id'] not in ['bitcoin', 'ethereum']]
+            # Get current market data for all coins
+            try:
+                coin_ids = [coin['coingecko_id'] for coin in self.config['coins']]
+                coin_data = self.data_fetcher.get_coin_market_data_batch(coin_ids)
+            except Exception as e:
+                logger.error(f"Failed to fetch coin data: {e}")
+                return {}
             
-            # Use realistic portfolio allocation instead of fixed 1000 units
-            # Assume total altcoin investment based on performance data
-            estimated_total_altcoin_investment = 0
-            
-            for alt in altcoins:
-                symbol = alt.get('symbol', '')
-                current_price = alt.get('current_price', 0)
-                pnl_percent = alt.get('pnl_percent', 0)
+            # Calculate altcoin value using ACTUAL current_amount from config
+            for coin_config in self.config['coins']:
+                coin_id = coin_config.get('coingecko_id')
+                coin_name = coin_config.get('name')
+                current_amount = coin_config.get('current_amount', 0)
                 
-                # Find the config for this altcoin
-                config_coin = next((c for c in altcoin_configs if c.get('symbol') == symbol), None)
-                if config_coin:
-                    avg_price = config_coin.get('avg_price', current_price)
-                    
-                    # Estimate initial investment (this should be replaced with actual holdings)
-                    # For now, use a conservative estimate based on typical DCA amounts
-                    estimated_investment_per_coin = 1000  # $1000 per altcoin (adjust this!)
-                    
-                    # Calculate current value based on performance
-                    if pnl_percent != 0:
-                        current_value = estimated_investment_per_coin * (1 + pnl_percent / 100)
-                    else:
-                        current_value = estimated_investment_per_coin
-                    
-                    total_altcoin_value_usd += current_value
+                # Skip BTC and ETH - only count altcoins
+                if coin_name in ['BTC', 'ETH']:
+                    continue
+                
+                if coin_id in coin_data:
+                    coin_price = coin_data[coin_id].get('usd', 0)
+                    altcoin_contribution = current_amount * coin_price
+                    total_altcoin_value_usd += altcoin_contribution
+            
+            # Also need to add BTC and ETH current holdings to total portfolio value
+            btc_amount = 0
+            eth_amount = 0
+            for coin_config in self.config['coins']:
+                coin_id = coin_config.get('coingecko_id')
+                coin_name = coin_config.get('name')
+                current_amount = coin_config.get('current_amount', 0)
+                
+                if coin_name == 'BTC':
+                    btc_amount = current_amount
+                elif coin_name == 'ETH':
+                    eth_amount = current_amount
+            
+            # Calculate total current portfolio value (altcoins + BTC + ETH)
+            btc_value = btc_amount * btc_price
+            eth_value = eth_amount * eth_price
+            total_portfolio_value_usd = total_altcoin_value_usd + btc_value + eth_value
             
             # Goal value: 1 BTC + 10 ETH
             goal_value_usd = (self.target_btc * btc_price) + (self.target_eth * eth_price)
             
-            # BTC equivalent of altcoins
-            total_altcoin_value_btc = total_altcoin_value_usd / btc_price
+            # BTC equivalent of total portfolio
+            total_portfolio_value_btc = total_portfolio_value_usd / btc_price if btc_price > 0 else 0
             
-            # Achievement percentage
-            achievement_percentage = (total_altcoin_value_usd / goal_value_usd) * 100
+            # Achievement percentage based on TOTAL portfolio vs goal
+            achievement_percentage = (total_portfolio_value_usd / goal_value_usd) * 100 if goal_value_usd > 0 else 0
             
             return {
                 'total_altcoin_value_usd': total_altcoin_value_usd,
-                'total_altcoin_value_btc': total_altcoin_value_btc,
+                'total_altcoin_value_btc': total_portfolio_value_btc,  # This should be total portfolio BTC equivalent
                 'goal_value_usd': goal_value_usd,
                 'achievement_percentage': achievement_percentage
             }

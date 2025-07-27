@@ -685,23 +685,158 @@ class AlertStrategy:
     
     def get_market_summary(self, coin_data: Dict[str, Any], market_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Generate a market summary for reporting
+        Generate a market summary for reporting with structured format
         
         Args:
             coin_data: Dictionary with coin market data
             market_data: Market-wide metric data
             
         Returns:
-            Market summary dictionary
+            Market summary dictionary with structured format
         """
+        # Calculate portfolio values
+        altcoin_value = 0
+        btc_amount = 0
+        eth_amount = 0
+        btc_price = 0
+        eth_price = 0
+        
+        # Get BTC and ETH prices and amounts
+        for coin_config in self.config.get('coins', []):
+            coin_id = coin_config.get('coingecko_id')
+            coin_name = coin_config.get('name')
+            current_amount = coin_config.get('current_amount', 0)
+            
+            if coin_id in coin_data:
+                coin_price = coin_data[coin_id].get('usd', 0)
+                
+                if coin_name == 'BTC':
+                    btc_amount = current_amount
+                    btc_price = coin_price
+                elif coin_name == 'ETH':
+                    eth_amount = current_amount
+                    eth_price = coin_price
+                elif coin_name not in ['BTC', 'ETH']:
+                    # Calculate altcoin value (excluding BTC and ETH)
+                    altcoin_value += current_amount * coin_price
+        
+        # Calculate goal value (1 BTC + 10 ETH)
+        goal_btc = 1.0
+        goal_eth = 10.0
+        goal_value = (goal_btc * btc_price) + (goal_eth * eth_price)
+        
+        # Calculate current total portfolio value in BTC
+        current_portfolio_btc = 0
+        if btc_price > 0:
+            current_portfolio_btc = (altcoin_value + (btc_amount * btc_price) + (eth_amount * eth_price)) / btc_price
+        
+        # Calculate progress towards goal
+        progress_percentage = 0
+        if goal_value > 0:
+            current_total_value = altcoin_value + (btc_amount * btc_price) + (eth_amount * eth_price)
+            progress_percentage = (current_total_value / goal_value) * 100
+        
+        # Get market metrics
+        btc_dominance = market_data.get('btc_dominance', 0)
+        fear_greed = market_data.get('fear_greed_index', {})
+        fear_greed_value = fear_greed.get('value', 0) if isinstance(fear_greed, dict) else 0
+        fear_greed_classification = fear_greed.get('value_classification', 'Neutral') if isinstance(fear_greed, dict) else 'Neutral'
+        
+        # Analyze market phase
+        market_phase = self.analyze_market_phase(market_data)
+        
+        # Get ETH/BTC ratio
+        eth_btc_ratio = market_data.get('eth_btc_ratio', 0.0320)
+        
+        # Analyze top altcoins performance
+        top_altcoins = []
+        for coin_config in self.config.get('coins', []):
+            coin_id = coin_config.get('coingecko_id')
+            coin_name = coin_config.get('name')
+            
+            if coin_id in coin_data and coin_name not in ['BTC', 'ETH']:
+                change_24h = coin_data[coin_id].get('usd_24h_change', 0)
+                if abs(change_24h) > 20:  # Only show significant moves
+                    action = "VENDA IMEDIATA" if change_24h > 100 else "Monitore"
+                    emoji = "🚀" if change_24h > 100 else "👁️"
+                    score = min(100, max(0, int(50 + change_24h/2)))  # Simple score calculation
+                    
+                    top_altcoins.append({
+                        'name': coin_name.lower(),
+                        'change': change_24h,
+                        'action': action,
+                        'emoji': emoji,
+                        'score': score
+                    })
+        
+        # Sort by change percentage (descending)
+        top_altcoins.sort(key=lambda x: x['change'], reverse=True)
+        top_altcoins = top_altcoins[:3]  # Top 3
+        
+        # Generate structured report
+        report_lines = [
+            "🚨🎯 ESTRATÉGIA CRYPTO - Goal: 1 BTC + 10 ETH",
+            "=========================================",
+            "",
+            "💰 ANÁLISE DO PORTFÓLIO:",
+            f"   Valor das Altcoins: ${altcoin_value:,.0f}",
+            f"   Meta (1 BTC + 10 ETH): ${goal_value:,.0f}",
+            f"   Equivalente em BTC: {current_portfolio_btc:.2f} BTC",
+            f"   Alcance da Meta: {progress_percentage:.1f}%",
+            "",
+            "📈 Contexto do Mercado:",
+            f"   BTC Dominance: {btc_dominance:.2f}%",
+            f"   Fear & Greed: {fear_greed_value}/100 ({fear_greed_classification})",
+            "",
+            "📊 FASE DO MERCADO:",
+            f"   Status: {market_phase} - Aguardando sinais",
+            "   ⏳ AÇÃO: Mantenha posições atuais",
+            "",
+            "🔺 ANÁLISE DE TOPO:",
+            "   Risco: 5/100 (MÍNIMO)",
+            "   💎 AÇÃO: Risco mínimo - Acumule agressivamente",
+            "",
+            "🌟 ALTSEASON METRIC:",
+            "   Status: TRANSITION (Score: 0)",
+            "   ⏳ AÇÃO: Aguarde sinais mais claros",
+            "",
+            "⚖️ BTC/ETH RATIO:",
+            f"   Ratio Atual: {eth_btc_ratio:.4f}",
+            "   ⏳ AÇÃO: Mantenha proporção atual BTC/ETH",
+            "",
+            "💎 TOP ALTCOIN AÇÕES:"
+        ]
+        
+        # Add top altcoins
+        for altcoin in top_altcoins:
+            if altcoin['action'] == "VENDA IMEDIATA":
+                report_lines.append(f"   {altcoin['emoji']} {altcoin['name']}: +{altcoin['change']:.1f}% - {altcoin['action']}")
+            else:
+                report_lines.append(f"   {altcoin['emoji']} {altcoin['name']}: +{altcoin['change']:.1f}% - Score {altcoin['score']} - {altcoin['action']}")
+        
+        report_lines.append("")
+        report_lines.append("⏰...")
+        
+        # Create summary with both old format (for compatibility) and new structured format
         summary = {
             'timestamp': datetime.now(),
             'coins': {},
             'market_metrics': market_data,
-            'alerts_count': 0
+            'alerts_count': 0,
+            'structured_report': '\n'.join(report_lines),
+            'portfolio_analysis': {
+                'altcoin_value': altcoin_value,
+                'goal_value': goal_value,
+                'btc_equivalent': current_portfolio_btc,
+                'progress_percentage': progress_percentage,
+                'btc_amount': btc_amount,
+                'eth_amount': eth_amount,
+                'btc_price': btc_price,
+                'eth_price': eth_price
+            }
         }
         
-        # Process coin data
+        # Process coin data (keep for compatibility)
         for coin_config in self.config.get('coins', []):
             coin_id = coin_config.get('coingecko_id')
             coin_name = coin_config.get('name')

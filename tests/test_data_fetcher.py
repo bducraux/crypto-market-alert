@@ -290,14 +290,42 @@ class TestDataFetcher:
         assert result == dominance
         assert result > 0  # BTC dominance should always be positive
     
+    @patch.object(DataFetcher, '_make_coinmarketcap_request')
     @patch.object(DataFetcher, '_make_coingecko_request')
-    def test_get_btc_dominance_failure(self, mock_request, fetcher):
-        """Test failed BTC dominance retrieval"""
-        mock_request.return_value = None
+    def test_get_btc_dominance_failure(self, mock_coingecko, mock_coinmarketcap, fetcher):
+        """Test failed BTC dominance retrieval from both APIs"""
+        mock_coingecko.return_value = None
+        mock_coinmarketcap.return_value = None
         
         result = fetcher.get_btc_dominance()
         
         assert result is None
+        mock_coingecko.assert_called_once()
+        mock_coinmarketcap.assert_called_once()
+    
+    @patch.object(DataFetcher, '_make_coinmarketcap_request')
+    @patch.object(DataFetcher, '_make_coingecko_request')
+    @pytest.mark.parametrize("dominance", [48.5, 55.2, 42.1])
+    def test_get_btc_dominance_coinmarketcap_fallback(self, mock_coingecko, mock_coinmarketcap, fetcher, dominance):
+        """Test successful BTC dominance retrieval via CoinMarketCap fallback"""
+        # CoinGecko fails
+        mock_coingecko.return_value = None
+        
+        # CoinMarketCap succeeds
+        mock_coinmarketcap_response = {
+            'data': {
+                'btc_dominance': dominance
+            }
+        }
+        mock_coinmarketcap.return_value = mock_coinmarketcap_response
+        
+        result = fetcher.get_btc_dominance()
+        
+        assert isinstance(result, (int, float))
+        assert 0 <= result <= 100
+        assert result == dominance
+        mock_coingecko.assert_called_once()
+        mock_coinmarketcap.assert_called_once()
     
     @patch.object(DataFetcher, 'get_coin_market_data_batch')
     @pytest.mark.parametrize("eth_price,btc_price", [
