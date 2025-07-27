@@ -42,13 +42,13 @@ class StrategicAdvisor:
             # Get coin IDs from config
             coin_ids = [coin['coingecko_id'] for coin in self.config.get('coins', [])]
             
-            # Get current market data
-            all_data = self.data_fetcher.get_coin_market_data_batch(coin_ids)
+            # Get current market data (pass config coins for binance mapping)
+            all_data = self.data_fetcher.get_coin_market_data_batch(coin_ids, self.config.get('coins', []))
             
             # Get market metrics (usando sistema híbrido)
             market_metrics = {
                 'btc_dominance': self.data_fetcher.get_btc_dominance(),
-                'eth_btc_ratio': self.data_fetcher.get_eth_btc_ratio(),
+                'eth_btc_ratio': self.data_fetcher.get_eth_btc_ratio(self.config.get('coins', [])),
                 'fear_greed_index': self.data_fetcher.get_fear_greed_index()
             }
             
@@ -926,7 +926,7 @@ class StrategicAdvisor:
             # Get current market data for all coins
             try:
                 coin_ids = [coin['coingecko_id'] for coin in self.config['coins']]
-                coin_data = self.data_fetcher.get_coin_market_data_batch(coin_ids)
+                coin_data = self.data_fetcher.get_coin_market_data_batch(coin_ids, self.config.get('coins', []))
             except Exception as e:
                 logger.error(f"Failed to fetch coin data: {e}")
                 return {}

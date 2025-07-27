@@ -443,11 +443,11 @@ class TestDataFetcher:
         assert len(coins) > 0
     
     @patch.object(DataFetcher, 'get_binance_price')
-    @patch.object(DataFetcher, 'get_coin_market_data_batch')
-    def test_connection_test_success(self, mock_cg_batch, mock_binance, fetcher):
+    @patch.object(DataFetcher, 'get_btc_dominance')
+    def test_connection_test_success(self, mock_btc_dominance, mock_binance, fetcher):
         """Test successful connection test"""
         mock_binance.return_value = {'price': '50000'}
-        mock_cg_batch.return_value = {'bitcoin': {'usd': 50000}}
+        mock_btc_dominance.return_value = 45.2
         
         with patch.object(fetcher, 'get_fear_greed_index', return_value={'value': 50}):
             result = fetcher.test_connection()
@@ -457,11 +457,11 @@ class TestDataFetcher:
             assert result['fear_greed'] is True
     
     @patch.object(DataFetcher, 'get_binance_price')
-    @patch.object(DataFetcher, 'get_coin_market_data_batch')
-    def test_connection_test_partial_failure(self, mock_cg_batch, mock_binance, fetcher):
+    @patch.object(DataFetcher, 'get_btc_dominance')
+    def test_connection_test_partial_failure(self, mock_btc_dominance, mock_binance, fetcher):
         """Test connection test with partial failures"""
         mock_binance.return_value = None  # Binance fails
-        mock_cg_batch.return_value = {'bitcoin': {'usd': 50000}}  # CoinGecko works
+        mock_btc_dominance.return_value = 45.2  # CoinGecko works
         
         with patch.object(fetcher, 'get_fear_greed_index', return_value=None):  # Fear & Greed fails
             result = fetcher.test_connection()
@@ -515,14 +515,14 @@ class TestDataFetcherIntegration:
         assert btc_dominance == 38.5
         # This should trigger altseason alerts in the main system
     
-    @patch.object(DataFetcher, '_make_binance_request')
+    @patch('src.api_client.BinanceClient.make_request')
     def test_high_volatility_scenario(self, mock_binance, fetcher):
         """Test historical data during high volatility"""
-        # Simulate high volatility klines data
+        # Simulate high volatility klines data with realistic high volatility range
         volatile_klines = [
-            [1609459200000, "50000", "55000", "45000", "52000", "2000", 1609462800000, "100000000", 200, "1000", "50000000", "0"],
-            [1609462800000, "52000", "48000", "44000", "46000", "2500", 1609466400000, "115000000", 250, "1250", "57500000", "0"],
-            [1609466400000, "46000", "51000", "42000", "49000", "3000", 1609470000000, "140000000", 300, "1500", "70000000", "0"]
+            [1609459200000, "45000", "55000", "40000", "52000", "2000", 1609462800000, "100000000", 200, "1000", "50000000", "0"],
+            [1609462800000, "52000", "48000", "35000", "46000", "2500", 1609466400000, "115000000", 250, "1250", "57500000", "0"],
+            [1609466400000, "46000", "60000", "30000", "49000", "3000", 1609470000000, "140000000", 300, "1500", "70000000", "0"]
         ]
         mock_binance.return_value = volatile_klines
         
@@ -530,9 +530,9 @@ class TestDataFetcherIntegration:
         
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 3
-        # Check for high volatility indicators
+        # Check for high volatility indicators - adjusted for realistic values
         price_range = result['high'].max() - result['low'].min()
-        assert price_range > 10000  # High volatility
+        assert price_range > 25000  # High volatility (60000 - 30000 = 30000)
     
     @patch('requests.get')
     def test_extreme_fear_scenario(self, mock_get, fetcher):
@@ -617,7 +617,7 @@ class TestDataFetcherErrorHandling:
         
         assert result is None
     
-    @patch.object(DataFetcher, '_make_binance_request')
+    @patch('src.api_client.BinanceClient.make_request')
     def test_malformed_klines_data_handling(self, mock_request, fetcher):
         """Test handling of malformed klines data"""
         # Missing fields in klines data

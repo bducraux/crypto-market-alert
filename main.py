@@ -101,7 +101,7 @@ class CryptoMarketAlertSystem:
                 self.logger.debug(f"BTC Dominance: {btc_dominance:.2f}%")
             
             # Get ETH/BTC ratio
-            eth_btc_ratio = self.data_fetcher.get_eth_btc_ratio()
+            eth_btc_ratio = self.data_fetcher.get_eth_btc_ratio(self.config.get('coins', []))
             if eth_btc_ratio:
                 market_data['eth_btc_ratio'] = eth_btc_ratio
                 self.logger.debug(f"ETH/BTC Ratio: {eth_btc_ratio:.6f}")
@@ -132,7 +132,7 @@ class CryptoMarketAlertSystem:
         
         try:
             # Get market data for all coins
-            coin_data = self.data_fetcher.get_coin_market_data_batch(coin_ids)
+            coin_data = self.data_fetcher.get_coin_market_data_batch(coin_ids, self.config.get('coins', []))
             
             self.logger.info(f"Collected data for {len(coin_data)} coins")
             
