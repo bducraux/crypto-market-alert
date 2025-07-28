@@ -570,28 +570,3 @@ class DataFetcher:
                    'matic-network', 'cardano', 'tron', 'cosmos', 'lido-dao', 'tether',
                    'blockstack', 'stacks', 'render-token', 'pancakeswap-token', 
                    'fetch-ai', 'pyth-network', 'shiba-inu']
-
-
-# Backward compatibility aliases
-def get_coin_market_data_batch(*args, **kwargs):
-    """Backward compatibility function"""
-    fetcher = DataFetcher()
-    return fetcher.get_coin_market_data_batch(*args, **kwargs)
-
-
-def get_btc_dominance():
-    """Backward compatibility function"""
-    fetcher = DataFetcher()
-    return fetcher.get_btc_dominance()
-
-
-def get_eth_btc_ratio():
-    """Backward compatibility function"""
-    fetcher = DataFetcher()
-    return fetcher.get_eth_btc_ratio()
-
-
-def get_fear_greed_index():
-    """Backward compatibility function"""
-    fetcher = DataFetcher()
-    return fetcher.get_fear_greed_index()
