@@ -10,6 +10,7 @@ import json
 from dataclasses import dataclass
 from src.data_fetcher import DataFetcher
 from src.indicators import TechnicalIndicators
+from src.cycle_top_detector import CycleTopDetector
 from src.utils import load_config
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,7 @@ class StrategicAdvisor:
         self.config = load_config(config_path)
         self.data_fetcher = DataFetcher()
         self.indicators = TechnicalIndicators()
+        self.cycle_top_detector = CycleTopDetector(self.config)
         
         # Strategic goals
         self.target_btc = 1.0
@@ -779,25 +781,62 @@ class StrategicAdvisor:
         report.append("🎯 ESTRATÉGIA CRYPTO - Goal: 1 BTC + 10 ETH")
         report.append("=" * 50)
         
-        # Portfolio Achievement Analysis
-        if portfolio_analysis:
-            report.append("💰 ANÁLISE DO PORTFÓLIO:")
-            total_alt_value = portfolio_analysis.get('total_altcoin_value_usd', 0)
-            goal_value = portfolio_analysis.get('goal_value_usd', 0)
-            btc_equivalent = portfolio_analysis.get('total_altcoin_value_btc', 0)
-            achievement_percent = portfolio_analysis.get('achievement_percentage', 0)
+        # Portfolio Achievement Analysis (using unified portfolio utils)
+        from src.portfolio_utils import PortfolioAnalyzer
+        
+        try:
+            # Get current coin data for portfolio analysis
+            coin_ids = [coin['coingecko_id'] for coin in self.config.get('coins', [])]
+            coin_data = self.data_fetcher.get_coin_market_data_batch(coin_ids, self.config.get('coins', []))
             
-            report.append(f"   Valor das Altcoins: ${total_alt_value:,.0f}")
-            report.append(f"   Meta (1 BTC + 10 ETH): ${goal_value:,.0f}")
-            report.append(f"   Equivalente em BTC: {btc_equivalent:.3f} BTC")
-            report.append(f"   Alcance da Meta: {achievement_percent:.1f}%")
+            # Get market data for cycle analysis
+            market_data = {
+                'btc_dominance': self.data_fetcher.get_btc_dominance(),
+                'eth_btc_ratio': self.data_fetcher.get_eth_btc_ratio(self.config.get('coins', [])),
+                'fear_greed_index': self.data_fetcher.get_fear_greed_index()
+            }
             
-            if achievement_percent >= 100:
-                report.append("   🎉 AÇÃO: Você pode alcançar a meta vendendo altcoins!")
-            elif achievement_percent >= 80:
-                report.append("   ⚠️ AÇÃO: Muito próximo da meta - considere vendas parciais")
-            else:
-                report.append("   📈 AÇÃO: Continue acumulando - ainda distante da meta")
+            # Calculate indicators for Bitcoin (needed for cycle analysis)
+            if 'bitcoin' in coin_data:
+                btc_data = coin_data['bitcoin']
+                historical_df = btc_data.get('historical')
+                if historical_df is not None and not historical_df.empty:
+                    btc_indicators = self.indicators.get_latest_indicator_values(
+                        historical_df, 
+                        self.config.get('indicators', {}),
+                        coin_symbol='bitcoin'  # Important for Pi Cycle Top and RCI
+                    )
+                    btc_data['indicators'] = btc_indicators
+                    logger.debug(f"Bitcoin indicators calculated: {list(btc_indicators.keys())}")
+            
+            # Use unified portfolio analyzer
+            portfolio_analyzer = PortfolioAnalyzer(type('MockAlertSystem', (), {'config': self.config})())
+            portfolio_data = portfolio_analyzer.generate_portfolio_report(coin_data, "telegram")
+            portfolio_text = portfolio_analyzer.format_for_telegram(portfolio_data)
+            
+            report.append(portfolio_text)
+            
+        except Exception as e:
+            # Fallback to old method if new one fails
+            logger.warning(f"Portfolio analyzer failed, using fallback: {e}")
+            if portfolio_analysis:
+                report.append("💰 ANÁLISE DO PORTFÓLIO:")
+                total_alt_value = portfolio_analysis.get('total_altcoin_value_usd', 0)
+                goal_value = portfolio_analysis.get('goal_value_usd', 0)
+                btc_equivalent = portfolio_analysis.get('total_altcoin_value_btc', 0)
+                achievement_percent = portfolio_analysis.get('achievement_percentage', 0)
+                
+                report.append(f"   Valor das Altcoins: ${total_alt_value:,.0f}")
+                report.append(f"   Meta (1 BTC + 10 ETH): ${goal_value:,.0f}")
+                report.append(f"   Equivalente em BTC: {btc_equivalent:.3f} BTC")
+                report.append(f"   Alcance da Meta: {achievement_percent:.1f}%")
+                
+                if achievement_percent >= 100:
+                    report.append("   🎉 AÇÃO: Você pode alcançar a meta vendendo altcoins!")
+                elif achievement_percent >= 80:
+                    report.append("   ⚠️ AÇÃO: Muito próximo da meta - considere vendas parciais")
+                else:
+                    report.append("   📈 AÇÃO: Continue acumulando - ainda distante da meta")
         
         report.append("")
         
@@ -821,20 +860,17 @@ class StrategicAdvisor:
         
         report.append("")
         
-        # Cycle Top Analysis
-        cycle_risk = self._calculate_enhanced_cycle_risk(analysis)
-        report.append("🔺 ANÁLISE DE TOPO:")
-        report.append(f"   Risco: {cycle_risk['score']}/100 ({cycle_risk['level']})")
-        if cycle_risk['score'] >= 80:
-            report.append("   🔴 AÇÃO: TOPO PRÓXIMO - Venda 50-70% do portfólio")
-        elif cycle_risk['score'] >= 60:
-            report.append("   🟠 AÇÃO: Alto risco - Venda 20-30% dos lucros")
-        elif cycle_risk['score'] >= 40:
-            report.append("   🟡 AÇÃO: Risco moderado - Prepare vendas parciais")
-        elif cycle_risk['score'] >= 20:
-            report.append("   � AÇÃO: Baixo risco - Continue acumulando")
-        else:
-            report.append("   💎 AÇÃO: Risco mínimo - Acumule agressivamente")
+        # Cycle Top Analysis - Using comprehensive CycleTopDetector
+        try:
+            cycle_analysis_lines = self._format_cycle_analysis_for_report(coin_data, market_data)
+            report.extend(cycle_analysis_lines)
+        except Exception as e:
+            logger.error(f"Cycle analysis failed: {e}")
+            report.extend([
+                "🔺 CYCLE TOP ANALYSIS:",
+                "   Risk: Error - Analysis failed",
+                "   ⚠️ ACTION: Manual review recommended"
+            ])
         
         report.append("")
         
@@ -1121,4 +1157,126 @@ class StrategicAdvisor:
         except Exception as e:
             logger.error(f"Enhanced cycle risk calculation failed: {e}")
             # Fallback to traditional calculation
+    
+    def _format_cycle_analysis_for_report(self, coin_data: Dict, market_data: Dict) -> List[str]:
+        """Format detailed cycle analysis for strategic report"""
+        try:
+            # Use the existing CycleTopDetector for comprehensive analysis
+            cycle_analysis = self.cycle_top_detector.analyze_cycle_top(coin_data, market_data)
+            
+            if not cycle_analysis or 'signals' not in cycle_analysis:
+                return [
+                    "🔺 CYCLE TOP ANALYSIS:",
+                    "   Risk: Unknown - Data unavailable",
+                    "   ⚠️ ACTION: Monitor market conditions"
+                ]
+            
+            risk_score = cycle_analysis.get('risk_score', 0)
+            risk_level = cycle_analysis.get('risk_level', 'LOW')
+            signals = cycle_analysis.get('signals', {})
+            
+            # Main header
+            report = [
+                "🔺 CYCLE TOP ANALYSIS:",
+                f"   Overall Risk: {risk_score}/100 ({risk_level})"
+            ]
+            
+            # Pi Cycle Top Analysis (Bitcoin specific)
+            btc_signals = signals.get('btc_overextension', {})
+            pi_cycle_active = btc_signals.get('details', {}).get('pi_cycle_triggered', False)
+            ma200_multiple = btc_signals.get('details', {}).get('ma200_multiple', 0)
+            
+            report.extend([
+                "",
+                "   📊 INDICATORS:",
+                f"   • Pi Cycle Top: {'🔴 TRIGGERED' if pi_cycle_active else '🟢 Safe'}"
+            ])
+            
+            if ma200_multiple > 0:
+                if ma200_multiple >= 4.0:
+                    ma_status = "🔴 Extremely overextended"
+                elif ma200_multiple >= 3.0:
+                    ma_status = "🟡 Overextended"
+                else:
+                    ma_status = "🟢 Healthy"
+                report.append(f"   • BTC vs MA200: {ma_status} ({ma200_multiple:.1f}x)")
+            
+            # RSI Analysis
+            tech_signals = signals.get('technical_signals', {})
+            btc_rsi = tech_signals.get('details', {}).get('btc_rsi', 0)
+            if btc_rsi > 0:
+                if btc_rsi >= 80:
+                    rsi_status = "🔴 Extremely overbought"
+                elif btc_rsi >= 70:
+                    rsi_status = "🟡 Overbought"
+                elif btc_rsi <= 30:
+                    rsi_status = "🟢 Oversold"
+                else:
+                    rsi_status = "🟢 Neutral"
+                report.append(f"   • BTC RSI: {rsi_status} ({btc_rsi:.0f})")
+            
+            # RCI 3-Lines Analysis
+            rci_condition = tech_signals.get('details', {}).get('rci_condition', 'NEUTRAL')
+            rci_short = tech_signals.get('details', {}).get('rci_short', 0)
+            rci_medium = tech_signals.get('details', {}).get('rci_medium', 0)
+            rci_long = tech_signals.get('details', {}).get('rci_long', 0)
+            
+            # Always show RCI if any of the values are non-zero
+            if abs(rci_short) > 0 or abs(rci_medium) > 0 or abs(rci_long) > 0:
+                if rci_condition == 'EXTREME_OVERBOUGHT':
+                    rci_status = "🔴 EXTREME - All lines overbought"
+                elif rci_condition == 'OVERBOUGHT':
+                    rci_status = "🟡 OVERBOUGHT - Take profits"
+                elif rci_condition == 'EXTREME_OVERSOLD':
+                    rci_status = "🟢 EXTREME OVERSOLD - Buy opportunity"
+                elif rci_condition == 'OVERSOLD':
+                    rci_status = "🟢 OVERSOLD - Accumulate"
+                elif rci_condition == 'BULLISH_MOMENTUM':
+                    rci_status = "💚 BULLISH - Uptrend strong"
+                elif rci_condition == 'BEARISH_MOMENTUM':
+                    rci_status = "🔻 BEARISH - Downtrend strong"
+                else:
+                    rci_status = f"⚪ {rci_condition}"
+                
+                # Show RCI values if they're reasonable (always show if calculated)
+                if abs(rci_short) <= 100 and abs(rci_medium) <= 100 and abs(rci_long) <= 100:
+                    report.append(f"   • RCI 3-Lines: {rci_status}")
+                    report.append(f"     Short(9): {rci_short:.0f} | Med(26): {rci_medium:.0f} | Long(52): {rci_long:.0f}")
+                else:
+                    report.append(f"   • RCI 3-Lines: {rci_status}")
+            
+            # Fear & Greed
+            euphoria_signals = signals.get('extreme_euphoria', {})
+            fear_greed = euphoria_signals.get('details', {}).get('fear_greed_value', 0)
+            if fear_greed > 0:
+                if fear_greed >= 85:
+                    fg_status = "🔴 Extreme greed"
+                elif fear_greed >= 75:
+                    fg_status = "🟡 Greed"
+                elif fear_greed <= 25:
+                    fg_status = "🟢 Extreme fear"
+                else:
+                    fg_status = "🟢 Neutral"
+                report.append(f"   • Fear & Greed: {fg_status} ({fear_greed:.0f})")
+            
+            # Overall Action
+            report.append("")
+            if risk_score >= 80:
+                report.append("   🚨 ACTION: CRITICAL - Consider major exit strategy")
+            elif risk_score >= 65:
+                report.append("   ⚠️ ACTION: HIGH RISK - Reduce positions gradually")
+            elif risk_score >= 35:
+                report.append("   🟡 ACTION: MODERATE - Monitor closely")
+            else:
+                report.append("   💎 ACTION: LOW RISK - Accumulate aggressively")
+            
+            return report
+            
+        except Exception as e:
+            logger.error(f"Error formatting cycle analysis: {e}")
+            return [
+                "🔺 CYCLE TOP ANALYSIS:",
+                "   Risk: Error - Analysis failed", 
+                "   ⚠️ ACTION: Manual review recommended"
+            ]
             return self._calculate_cycle_top_risk(analysis)

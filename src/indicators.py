@@ -249,25 +249,26 @@ class TechnicalIndicators:
             self.logger.error(f"Volume indicators calculation failed: {e}")
             return None
     
-    def get_latest_indicator_values(self, df: pd.DataFrame, config: Dict) -> Dict[str, float]:
+    def get_latest_indicator_values(self, df: pd.DataFrame, config: Dict, coin_symbol: str = None) -> Dict[str, float]:
         """
         Get the latest values of all configured indicators
         
         Args:
             df: Price data DataFrame
             config: Indicator configuration
+            coin_symbol: Symbol of the coin being analyzed (for Pi Cycle Top Bitcoin-only logic)
             
         Returns:
             Dictionary with latest indicator values
         """
         results = {}
-        
+
         try:
             # RSI
             rsi = self.calculate_rsi(df, config.get('rsi_period', 14))
             if rsi is not None:
                 results['rsi'] = rsi
-            
+
             # MACD
             macd_data = self.calculate_macd(
                 df, 
@@ -279,7 +280,7 @@ class TechnicalIndicators:
                 for key, series in macd_data.items():
                     if series is not None and not series.empty:
                         results[f'macd_{key}'] = float(series.iloc[-1]) if not pd.isna(series.iloc[-1]) else None
-            
+
             # Moving Averages
             ma_data = self.calculate_moving_averages(
                 df,
@@ -290,17 +291,23 @@ class TechnicalIndicators:
                 for key, series in ma_data.items():
                     if series is not None and not series.empty:
                         results[key] = float(series.iloc[-1]) if not pd.isna(series.iloc[-1]) else None
-            
-            # Pi Cycle Top Indicator (primarily for BTC)
-            if config.get('enable_pi_cycle', False):
+
+            # Pi Cycle Top Indicator (ONLY for Bitcoin - BTC cycle top detection)
+            if config.get('enable_pi_cycle', False) and coin_symbol and coin_symbol.lower() == 'bitcoin':
+                self.logger.info("Calculating Pi Cycle Top indicator for Bitcoin (market cycle analysis)")
                 pi_cycle_data = self.calculate_pi_cycle_top(df)
                 results.update(pi_cycle_data)
-            
-            # 3-Line RCI
+            elif config.get('enable_pi_cycle', False) and coin_symbol and coin_symbol.lower() != 'bitcoin':
+                self.logger.debug(f"Skipping Pi Cycle Top for {coin_symbol} - indicator is Bitcoin-specific for market cycle detection")
+
+            # 3-Line RCI (Rank Correlation Index)
             if config.get('enable_rci', False):
-                rci_data = self.calculate_rci_3_line(df, config.get('rci_periods', [9, 26, 52]))
-                results.update(rci_data)
-            
+                rci_data = self.calculate_rci_3lines(df, config.get('rci_periods', [9, 26, 52]))
+                if 'error' not in rci_data:
+                    results['rci_3lines'] = rci_data
+                else:
+                    self.logger.warning(f"RCI calculation failed: {rci_data['error']}")
+
             # Current price
             if 'close' in df.columns and not df['close'].empty:
                 results['current_price'] = float(df['close'].iloc[-1])
@@ -538,3 +545,166 @@ class TechnicalIndicators:
             return 'SELL'
         
         return 'NEUTRAL'
+
+    def calculate_rci_3lines(self, df: pd.DataFrame, periods: List[int] = [9, 26, 52]) -> Dict:
+        """
+        Calculate RCI 3-Lines (Rank Correlation Index)
+        
+        The RCI is superior to RSI for crypto markets as it measures the correlation
+        between price rank and time rank, making it more sensitive to trend changes.
+        
+        Args:
+            df: DataFrame with OHLCV data
+            periods: List of periods for short, medium, long RCI [9, 26, 52]
+            
+        Returns:
+            Dictionary containing RCI values and analysis
+        """
+        try:
+            if not self.validate_data(df, min_periods=max(periods)):
+                return {'error': 'Insufficient data for RCI calculation'}
+            
+            rci_values = {}
+            close_prices = df['close'].values
+            
+            for period in periods:
+                if len(close_prices) >= period:
+                    rci_series = []
+                    
+                    # Calculate RCI for each window
+                    for i in range(period - 1, len(close_prices)):
+                        window_prices = close_prices[i - period + 1:i + 1]
+                        
+                        # Create rank arrays
+                        price_ranks = pd.Series(window_prices).rank(method='min').values
+                        time_ranks = np.arange(1, period + 1)
+                        
+                        # Calculate Spearman correlation coefficient
+                        n = len(price_ranks)
+                        d_squared_sum = np.sum((price_ranks - time_ranks) ** 2)
+                        
+                        # RCI formula: (1 - 6 * Σd² / (n³ - n)) * 100
+                        rci = (1 - (6 * d_squared_sum) / (n ** 3 - n)) * 100
+                        rci_series.append(rci)
+                    
+                    # Pad with NaN for earlier periods
+                    full_series = [np.nan] * (period - 1) + rci_series
+                    rci_values[f'rci_{period}'] = full_series[-1] if rci_series else np.nan
+                else:
+                    rci_values[f'rci_{period}'] = np.nan
+            
+            # Analyze RCI signals
+            analysis = self._analyze_rci_signals(rci_values)
+            
+            return {
+                'values': rci_values,
+                'analysis': analysis,
+                'current': {
+                    'short': rci_values.get('rci_9', np.nan),
+                    'medium': rci_values.get('rci_26', np.nan),
+                    'long': rci_values.get('rci_52', np.nan)
+                }
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating RCI 3-Lines: {e}")
+            return {'error': f'RCI calculation failed: {str(e)}'}
+
+    def _analyze_rci_signals(self, rci_values: Dict, overbought: float = 80, oversold: float = -80) -> Dict:
+        """
+        Analyze RCI signals for market conditions
+        
+        Args:
+            rci_values: Dictionary with RCI values for different periods
+            overbought: Overbought threshold (default: 80)
+            oversold: Oversold threshold (default: -80)
+            
+        Returns:
+            Dictionary with signal analysis
+        """
+        try:
+            rci_9 = rci_values.get('rci_9', 0)
+            rci_26 = rci_values.get('rci_26', 0)
+            rci_52 = rci_values.get('rci_52', 0)
+            
+            # Handle NaN values
+            valid_rcis = [rci for rci in [rci_9, rci_26, rci_52] if not pd.isna(rci)]
+            
+            if not valid_rcis:
+                return {
+                    'condition': 'INSUFFICIENT_DATA',
+                    'signal': '⚪ NO SIGNAL',
+                    'risk_score': 50,
+                    'strength': 'WEAK',
+                    'details': 'Insufficient data for RCI analysis'
+                }
+            
+            # Count lines in different zones
+            overbought_count = sum(1 for rci in valid_rcis if rci > overbought)
+            oversold_count = sum(1 for rci in valid_rcis if rci < oversold)
+            neutral_high = sum(1 for rci in valid_rcis if 50 <= rci <= overbought)
+            neutral_low = sum(1 for rci in valid_rcis if oversold <= rci <= -50)
+            
+            # Determine market condition based on RCI alignment
+            total_lines = len(valid_rcis)
+            
+            if overbought_count == total_lines:
+                condition = "EXTREME_OVERBOUGHT"
+                signal = "🔴 SELL SIGNAL"
+                risk_score = 95
+                strength = "VERY_STRONG"
+            elif overbought_count >= 2:
+                condition = "OVERBOUGHT" 
+                signal = "🟡 CAUTION - Consider taking profits"
+                risk_score = 75
+                strength = "STRONG"
+            elif oversold_count == total_lines:
+                condition = "EXTREME_OVERSOLD"
+                signal = "🟢 BUY SIGNAL"
+                risk_score = 5
+                strength = "VERY_STRONG"
+            elif oversold_count >= 2:
+                condition = "OVERSOLD"
+                signal = "🟢 ACCUMULATE - Good buying opportunity"
+                risk_score = 20
+                strength = "STRONG"
+            elif neutral_high >= 2:
+                condition = "BULLISH_MOMENTUM"
+                signal = "💚 BULLISH - Uptrend continues"
+                risk_score = 35
+                strength = "MEDIUM"
+            elif neutral_low >= 2:
+                condition = "BEARISH_MOMENTUM"
+                signal = "🔻 BEARISH - Downtrend continues"
+                risk_score = 65
+                strength = "MEDIUM"
+            else:
+                condition = "NEUTRAL"
+                signal = "⚪ HOLD - Mixed signals"
+                risk_score = 50
+                strength = "WEAK"
+            
+            return {
+                'condition': condition,
+                'signal': signal,
+                'risk_score': risk_score,
+                'strength': strength,
+                'overbought_lines': overbought_count,
+                'oversold_lines': oversold_count,
+                'total_lines': total_lines,
+                'details': {
+                    'rci_short': rci_9,
+                    'rci_medium': rci_26,
+                    'rci_long': rci_52,
+                    'alignment_score': max(overbought_count, oversold_count) / total_lines * 100
+                }
+            }
+            
+        except Exception as e:
+            return {
+                'condition': 'ERROR',
+                'signal': '⚠️ ERROR',
+                'risk_score': 50,
+                'strength': 'WEAK',
+                'details': f'Analysis error: {str(e)}'
+            }

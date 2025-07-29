@@ -278,6 +278,43 @@ class CycleTopDetector:
             result['active_signals'] += 1
             result['signals'].append(f"BTC RSI extremo: {btc_rsi:.1f}")
         
+        # RCI 3-Lines Analysis for Bitcoin
+        rci_data = indicators.get('rci_3lines', {})
+        if rci_data and 'analysis' in rci_data:
+            rci_analysis = rci_data['analysis']
+            rci_condition = rci_analysis.get('condition', 'NEUTRAL')
+            rci_risk_score = rci_analysis.get('risk_score', 50)
+            rci_strength = rci_analysis.get('strength', 'WEAK')
+            
+            result['details']['rci_condition'] = rci_condition
+            result['details']['rci_risk_score'] = rci_risk_score
+            result['details']['rci_strength'] = rci_strength
+            
+            # Add RCI contribution to overall risk
+            if rci_condition == 'EXTREME_OVERBOUGHT':
+                result['score'] += 25
+                result['active_signals'] += 1
+                result['signals'].append(f"RCI 3-Lines: {rci_analysis.get('signal', 'EXTREME OVERBOUGHT')}")
+            elif rci_condition == 'OVERBOUGHT':
+                result['score'] += 15
+                result['active_signals'] += 1
+                result['signals'].append(f"RCI 3-Lines: {rci_analysis.get('signal', 'OVERBOUGHT')}")
+            elif rci_condition == 'EXTREME_OVERSOLD':
+                result['score'] -= 10  # Reduce risk score for oversold conditions
+                result['signals'].append(f"RCI 3-Lines: {rci_analysis.get('signal', 'EXTREME OVERSOLD')}")
+            elif rci_condition == 'OVERSOLD':
+                result['score'] -= 5  # Slight risk reduction
+                result['signals'].append(f"RCI 3-Lines: {rci_analysis.get('signal', 'OVERSOLD')}")
+            
+            # Store detailed RCI values for reporting
+            if 'details' in rci_analysis:
+                result['details'].update({
+                    'rci_short': rci_analysis['details'].get('rci_short', 0),
+                    'rci_medium': rci_analysis['details'].get('rci_medium', 0),
+                    'rci_long': rci_analysis['details'].get('rci_long', 0),
+                    'rci_alignment_score': rci_analysis['details'].get('alignment_score', 0)
+                })
+        
         # Múltiplas moedas overbought
         overbought_count = 0
         high_risk_count = 0  # RSI > 70
