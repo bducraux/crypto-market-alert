@@ -50,13 +50,13 @@ class CryptoMarketAlertSystem:
     
     def initialize_components(self) -> bool:
         """
-        Initialize all system components
+        Initialize all system components with enhanced configuration
         
         Returns:
             True if initialization successful
         """
         try:
-            # Initialize data fetcher
+            # Initialize data fetcher with configuration
             # API key is no longer needed for Binance, but keep for CoinGecko metrics
             api_key = get_env_variable('COINGECKO_API_KEY', None)
             general_config = self.config.get('general', {})
@@ -64,7 +64,8 @@ class CryptoMarketAlertSystem:
             # Use data fetcher for better reliability and performance
             self.data_fetcher = DataFetcher(
                 retry_attempts=general_config.get('retry_attempts', 3),
-                retry_delay=general_config.get('retry_delay', 2)
+                retry_delay=general_config.get('retry_delay', 2),
+                config=self.config  # Pass full config for enhanced settings
             )
             
             # Initialize strategy
@@ -119,10 +120,10 @@ class CryptoMarketAlertSystem:
     
     def collect_coin_data(self) -> Dict[str, Any]:
         """
-        Collect data for all configured coins
+        Collect data for all configured coins with enhanced validation
         
         Returns:
-            Dictionary containing coin data
+            Dictionary containing coin data with quality checks
         """
         coin_ids = [coin['coingecko_id'] for coin in self.config.get('coins', [])]
         
@@ -131,18 +132,29 @@ class CryptoMarketAlertSystem:
             return {}
         
         try:
-            # Get market data for all coins
+            # Get market data for all coins using optimized Binance-first approach
             coin_data = self.data_fetcher.get_coin_market_data_batch(coin_ids, self.config.get('coins', []))
             
-            self.logger.info(f"Collected data for {len(coin_data)} coins")
-            
-            # Log current prices
+            # Validate data quality
+            valid_coins = 0
             for coin_id, data in coin_data.items():
                 price = data.get('usd')
-                change_24h = data.get('usd_24h_change')
-                if price:
+                if price and price > 0:
+                    valid_coins += 1
+                    # Log current prices with data source info
+                    change_24h = data.get('usd_24h_change')
+                    source = data.get('source', 'unknown')
                     change_text = f" ({change_24h:+.2f}%)" if change_24h else ""
-                    self.logger.debug(f"{coin_id}: ${price:,.2f}{change_text}")
+                    self.logger.debug(f"{coin_id}: ${price:,.4f}{change_text} [{source}]")
+                else:
+                    self.logger.warning(f"Invalid price data for {coin_id}: {price}")
+            
+            success_rate = (valid_coins / len(coin_ids)) * 100 if coin_ids else 0
+            self.logger.info(f"Collected valid data for {valid_coins}/{len(coin_ids)} coins ({success_rate:.1f}% success)")
+            
+            # Alert if success rate is too low
+            if success_rate < 80:
+                self.logger.warning(f"Low data success rate: {success_rate:.1f}% - API issues detected")
             
             return coin_data
             
@@ -280,36 +292,133 @@ class CryptoMarketAlertSystem:
         return alerts_count
 
 
-async def main():
-    """Main entry point"""
-    # Check command line arguments
-    run_once = '--once' in sys.argv
-    config_path = "config/config.yaml"
-    
-    # Check for custom config path
-    for i, arg in enumerate(sys.argv):
-        if arg == '--config' and i + 1 < len(sys.argv):
-            config_path = sys.argv[i + 1]
-    
+async def test_data_quality(alert_system):
+    """Test data quality and provide detailed reporting"""
     try:
-        # Create and run the alert system
-        alert_system = CryptoMarketAlertSystem(config_path)
+        # Test market data collection
+        market_data = alert_system.collect_market_data()
+        print(f"📈 Market data: {len(market_data)} metrics collected")
         
-        if run_once:
-            print("Running single market check...")
-            alerts_count = await alert_system.run_once()
-            print(f"Generated {alerts_count} alerts")
-        else:
-            print("Starting continuous monitoring...")
-            await alert_system.run_continuous()
+        # Test coin data collection with detailed analysis
+        print("🪙 Testing coin data collection...")
+        coin_data = alert_system.collect_coin_data()
+        
+        # Analyze data quality by coin
+        insufficient_data_coins = []
+        sufficient_data_coins = []
+        
+        for coin_config in alert_system.config.get('coins', []):
+            coin_id = coin_config.get('coingecko_id')
+            coin_name = coin_config.get('name', coin_id)
             
-    except KeyboardInterrupt:
-        print("\nShutdown requested by user")
+            if coin_id in coin_data:
+                coin_info = coin_data[coin_id]
+                historical = coin_info.get('historical')
+                
+                if historical is not None:
+                    periods = len(historical)
+                    if periods < 350:
+                        insufficient_data_coins.append({
+                            'name': coin_name,
+                            'id': coin_id,
+                            'periods': periods,
+                            'binance_symbol': coin_config.get('binance_id', 'N/A')
+                        })
+                    else:
+                        sufficient_data_coins.append({
+                            'name': coin_name,
+                            'periods': periods
+                        })
+                else:
+                    insufficient_data_coins.append({
+                        'name': coin_name,
+                        'id': coin_id,
+                        'periods': 0,
+                        'binance_symbol': coin_config.get('binance_id', 'N/A')
+                    })
+        
+        # Report results
+        print(f"\n📊 Data Quality Report:")
+        print(f"✅ Coins with sufficient data (350+ periods): {len(sufficient_data_coins)}")
+        for coin in sufficient_data_coins:
+            print(f"   • {coin['name']}: {coin['periods']} periods")
+        
+        if insufficient_data_coins:
+            print(f"\n⚠️ Coins with insufficient data: {len(insufficient_data_coins)}")
+            for coin in insufficient_data_coins:
+                periods = coin['periods']
+                symbol = coin.get('binance_symbol', 'N/A')
+                print(f"   • {coin['name']} ({symbol}): {periods} periods (need 350)")
+                
+            print(f"\n💡 Recommendations for coins with insufficient data:")
+            print(f"   • These are likely newer tokens with limited trading history")
+            print(f"   • Basic indicators (RSI, MACD) will work with fewer periods")
+            print(f"   • Advanced indicators (Pi Cycle Top) require more data")
+            print(f"   • Consider using 4h or 1h intervals for more data points")
+        
+        # Test a single check to ensure everything works
+        print(f"\n🔄 Running single market check to test full pipeline...")
+        alerts_count = await alert_system.run_single_check()
+        print(f"✅ Market check completed. Generated {alerts_count} alerts")
+        
+        # Portfolio Valuation Report
+        print(f"\n💰 Portfolio Valuation Report:")
+        from src.portfolio_utils import PortfolioAnalyzer
+        analyzer = PortfolioAnalyzer(alert_system)
+        portfolio_data = analyzer.generate_portfolio_report(coin_data, "detailed")
+        portfolio_text = analyzer.format_for_test(portfolio_data)
+        print(portfolio_text)
+        
+        print(f"\n🎯 System Status: Ready for operation")
+        print(f"   • Total coins monitored: {len(coin_data)}")
+        print(f"   • Coins with full indicator support: {len(sufficient_data_coins)}")
+        print(f"   • Coins with basic indicator support: {len(insufficient_data_coins)}")
+        
     except Exception as e:
-        print(f"Fatal error: {e}")
-        sys.exit(1)
+        print(f"❌ Data quality test failed: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 if __name__ == "__main__":
-    # Run the async main function
-    asyncio.run(main())
+    # Enhanced main entry point with basic CLI support
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Crypto Market Alert System")
+    parser.add_argument('--test', action='store_true', help='Test system components')
+    parser.add_argument('--once', action='store_true', help='Run single check')
+    parser.add_argument('--config', default='config/config.yaml', help='Config file path')
+    
+    args = parser.parse_args()
+    
+    if '--test' in sys.argv or args.test:
+        print("🧪 Testing Crypto Market Alert System...")
+        alert_system = CryptoMarketAlertSystem(args.config)
+        
+        # Test initialization
+        print("📋 Testing component initialization...")
+        success = alert_system.initialize_components()
+        if success:
+            print("✅ Components initialized successfully")
+        else:
+            print("❌ Component initialization failed")
+            sys.exit(1)
+        
+        # Test data fetching with validation
+        print("📊 Testing data fetching and validation...")
+        asyncio.run(test_data_quality(alert_system))
+        
+    elif '--once' in sys.argv or args.once:
+        # Single run
+        alert_system = CryptoMarketAlertSystem(args.config)
+        alerts_count = asyncio.run(alert_system.run_once())
+        print(f"Generated {alerts_count} alerts")
+        
+    else:
+        # This file should be run via run.py for better CLI interface
+        print("⚠️ Please use 'python run.py' for the complete CLI interface")
+        print("   This provides better argument parsing and testing capabilities")
+        
+        # Basic fallback execution
+        alert_system = CryptoMarketAlertSystem(args.config)
+        asyncio.run(alert_system.run_once())
