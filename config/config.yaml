@@ -1,3 +1,28 @@
+general:
+  check_interval: 300  # 5 minutes between checks
+  retry_attempts: 3
+  retry_delay: 2
+  # Enhanced data fetching configuration
+  historical_data_periods: 500  # Increased for better indicator calculations
+  min_data_periods: 350  # Minimum required for Pi Cycle Top indicator
+  
+alert_cooldown:
+  price_alert: 60  # minutes
+  indicator_alert: 30  # minutes
+  market_alert: 120  # minutes
+
+market_indicators:
+  btc_dominance_threshold: 45.0  # Alert if BTC dominance changes significantly
+  fear_greed_extreme_low: 25     # Extreme fear level
+  fear_greed_extreme_high: 75    # Extreme greed level
+
+# Data source prioritization (1 = highest priority)
+data_sources:
+  binance_priority: 1      # Fast, reliable prices and historical data
+  coinmarketcap_priority: 2  # Good for market metrics, better rate limits
+  coingecko_priority: 3     # Fallback only due to rate limits
+
+# Coins with sufficient historical data (350+ periods for full indicator support)
 coins:
 - symbol: bitcoin
   name: BTC
@@ -43,17 +68,6 @@ coins:
     rsi_oversold: 25
     rsi_overbought: 75
   current_amount: 181.02
-- symbol: ondo
-  name: ONDO
-  coingecko_id: ondo-finance
-  binance_id: ONDOUSDT
-  avg_price: 0.8
-  alerts:
-    price_above: 1.5
-    price_below: 0.6
-    rsi_oversold: 25
-    rsi_overbought: 75
-  current_amount: 3282.0473
 - symbol: matic
   name: MATIC
   coingecko_id: matic-network
@@ -197,6 +211,17 @@ coins:
     price_below: 0
     rsi_oversold: 25
     rsi_overbought: 75
+- symbol: ondo
+  name: ONDO
+  coingecko_id: ondo-finance
+  binance_id: ONDOUSDT
+  avg_price: 0.8
+  alerts:
+    price_above: 1.5
+    price_below: 0.6
+    rsi_oversold: 25
+    rsi_overbought: 75
+  current_amount: 3282.0473
 indicators:
   rsi_period: 14
   ma_short: 50
@@ -250,12 +275,33 @@ professional_alerts:
     btc_dominance_threshold: 45
     eth_btc_ratio_threshold: 0.07
 
-# Strategic Alerts - NEW CONSOLIDATED FORMAT
+# Strategic Alerts - BTC/ETH Accumulation Strategy
 strategic_alerts:
   enabled: true
   consolidate_alerts: true     # 🎯 Mensagem única consolidada
   min_opportunity_score: 60    # Score mínimo para alertas
   priority_focus: "BTC_ETH_MAXIMIZATION"
+  
+  # 🎯 MAIN GOAL: 1 BTC + 10 ETH accumulation strategy
+  accumulation_targets:
+    btc_target: 1.0           # Target: 1 full Bitcoin
+    eth_target: 10.0          # Target: 10 Ethereum
+    exit_signal_threshold: 80  # Pi Cycle Top or extreme conditions for market exit
+    reentry_signal_threshold: 30  # RSI/Fear&Greed levels for market re-entry
+    
+  # Market exit conditions (protect from crashes like in the past)
+  exit_conditions:
+    pi_cycle_top_triggered: true      # Bitcoin Pi Cycle Top signal
+    extreme_fear_greed: 85            # Fear & Greed > 85
+    btc_dominance_reversal: true      # BTC dominance starting to fall from peak
+    multiple_rsi_overbought: 5        # 5+ coins with RSI > 75
+    
+  # Market re-entry conditions (accumulate during bear markets/dips)
+  reentry_conditions:
+    extreme_fear: 25                  # Fear & Greed < 25
+    btc_oversold: 30                  # Bitcoin RSI < 30
+    eth_oversold: 30                  # Ethereum RSI < 30
+    altcoins_oversold: 3              # 3+ altcoins with RSI < 30
 
 # 🆕 New Technical Indicators Configuration
 indicators:
@@ -266,10 +312,12 @@ indicators:
   macd_slow: 26                         # MACD lento
   macd_signal: 9                        # Linha de sinal MACD
   
-  # 🆕 Pi Cycle Top Indicator (primarily for BTC cycle analysis)
-  enable_pi_cycle: true                 # Enable Pi Cycle Top indicator
-  pi_cycle_short: 111                   # Short MA period for Pi Cycle
-  pi_cycle_long: 350                    # Long MA period for Pi Cycle
+  # 🆕 Pi Cycle Top Indicator (BITCOIN ONLY - Market Cycle Detection)
+  # This indicator is specifically designed for Bitcoin cycle analysis
+  # Used to detect market tops when BTC leads the entire crypto market down
+  enable_pi_cycle: true                 # Enable Pi Cycle Top indicator for Bitcoin only
+  pi_cycle_short: 111                   # Short MA period for Pi Cycle (111-day MA)
+  pi_cycle_long: 350                    # Long MA period for Pi Cycle (350-day MA × 2)
   
   # 🆕 3-Line RCI (Rank Correlation Index)
   enable_rci: true                      # Enable 3-Line RCI
@@ -346,6 +394,7 @@ altseason_detection:
     # Configurações do alerta
     alert_priority: "CRÍTICO"
     cooldown_hours: 6           # Relatório a cada 6 horas (4x/dia)
+
 logging:
   level: INFO
   file: logs/crypto_alerts.log
