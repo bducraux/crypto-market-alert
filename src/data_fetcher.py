@@ -25,17 +25,24 @@ class DataFetcher:
     - CoinMarketCap API: Fallback for critical metrics when CoinGecko fails
     """
     
-    def __init__(self, retry_attempts: int = 3, retry_delay: int = 2):
+    def __init__(self, retry_attempts: int = 3, retry_delay: int = 2, config: Dict = None):
         """
         Initialize data fetcher with modular API clients
         
         Args:
             retry_attempts: Number of retry attempts for failed requests
             retry_delay: Base delay between retry attempts
+            config: Configuration dictionary for enhanced settings
         """
         # Store parameters for backward compatibility
         self.retry_attempts = retry_attempts
         self.retry_delay = retry_delay
+        self.config = config or {}
+        
+        # Enhanced configuration
+        general_config = self.config.get('general', {})
+        self.historical_periods = general_config.get('historical_data_periods', 500)
+        self.min_periods = general_config.get('min_data_periods', 350)
         
         # Legacy compatibility attributes
         self.binance_base_url = "https://api.binance.com/api/v3"
@@ -50,11 +57,13 @@ class DataFetcher:
         try:
             cmc_api_key = get_env_variable('COINMARKETCAP_API_KEY')
             self.coinmarketcap = CoinMarketCapClient(cmc_api_key, retry_attempts, retry_delay * 2)
+            logger.info("CoinMarketCap API client initialized successfully")
         except ValueError:
             logger.info("CoinMarketCap API key not available, using CoinGecko only")
             self.coinmarketcap = None
         
-        logger.info("Enhanced Data Fetcher initialized with modular API clients")
+        logger.info(f"Enhanced Data Fetcher initialized: {self.historical_periods} periods, min {self.min_periods}")
+        logger.info("Data source priority: Binance → CoinMarketCap → CoinGecko")
     
     # Legacy compatibility methods
     def get_binance_price(self, symbol: str) -> Optional[Dict]:
@@ -157,28 +166,41 @@ class DataFetcher:
         
         return None
     
-    def get_historical_data(self, binance_symbol: str, interval: str = "1d", limit: int = 500) -> Optional[pd.DataFrame]:
+    def get_historical_data(self, binance_symbol: str, interval: str = "1d", limit: int = None) -> Optional[pd.DataFrame]:
         """
-        Get historical OHLCV data from Binance
+        Get historical OHLCV data from Binance with enhanced period support
         
         Args:
             binance_symbol: Binance trading symbol
             interval: Time interval (1d, 4h, 1h, etc.)
-            limit: Number of data points (max 1000)
+            limit: Number of data points (uses config default if None)
             
         Returns:
             DataFrame with OHLCV data or None if failed
         """
         try:
+            # Use configured periods or provided limit
+            if limit is None:
+                effective_limit = self.historical_periods
+            else:
+                effective_limit = max(limit, self.min_periods)  # Ensure minimum for indicators
+            
+            effective_limit = min(effective_limit, 1000)  # Binance API limit
+            
             params = {
                 'symbol': binance_symbol,
                 'interval': interval,
-                'limit': min(limit, 1000)
+                'limit': effective_limit
             }
             
             data = self.binance.make_request("klines", params)
             if not data:
+                logger.warning(f"No klines data received for {binance_symbol}")
                 return None
+            
+            if len(data) < self.min_periods:
+                logger.warning(f"Insufficient historical data for {binance_symbol}: {len(data)} < {self.min_periods} periods required")
+                # Don't return None - let the caller decide if partial data is acceptable
             
             # Convert to DataFrame with proper structure
             df = pd.DataFrame(data, columns=[
@@ -194,7 +216,10 @@ class DataFetcher:
             
             # Set index and return clean OHLCV data
             df.set_index('timestamp', inplace=True)
-            return df[['open', 'high', 'low', 'close', 'volume']].copy()
+            clean_df = df[['open', 'high', 'low', 'close', 'volume']].copy()
+            
+            logger.debug(f"Retrieved {len(clean_df)} periods of {interval} data for {binance_symbol}")
+            return clean_df
             
         except Exception as e:
             logger.error(f"Error getting historical data for {binance_symbol}: {e}")
@@ -202,7 +227,12 @@ class DataFetcher:
     
     def get_coin_market_data_batch(self, coin_ids: List[str], config_coins: List[Dict] = None) -> Dict[str, Dict]:
         """
-        Get market data for multiple coins using hybrid approach
+        Get market data for multiple coins using Binance-first hybrid approach
+        
+        Strategy:
+        1. Use Binance for all price/volume data (fast, reliable, no rate limits)
+        2. Use CoinMarketCap for market cap data (more reliable than CoinGecko)
+        3. Fallback to CoinGecko only if others fail
         
         Args:
             coin_ids: List of CoinGecko IDs
@@ -218,7 +248,7 @@ class DataFetcher:
         if config_coins:
             coin_mapping = self._build_coin_mapping(config_coins)
         
-        # Process each coin
+        # Process each coin with Binance-first strategy
         for coin_id in coin_ids:
             try:
                 # Handle USDT specially (stable coin)
@@ -226,51 +256,65 @@ class DataFetcher:
                     result[coin_id] = self._create_usdt_data()
                     continue
                 
-                # Get data from Binance if mapping exists
+                # Priority 1: Get data from Binance if mapping exists
                 binance_symbol = coin_mapping.get(coin_id)
                 if binance_symbol:
                     coin_data = self._get_coin_data_from_binance(coin_id, binance_symbol)
                     if coin_data:
                         result[coin_id] = coin_data
+                        logger.debug(f"✅ {coin_id}: Binance data retrieved")
                         continue
                 
-                # Fallback to CoinGecko (also when no config_coins provided)
-                logger.debug(f"Using CoinGecko for {coin_id}")
-                coin_data = self._get_coin_data_from_coingecko(coin_id)
-                if coin_data:
-                    result[coin_id] = coin_data
-                    continue
-                
-                # Final fallback to Binance if CoinGecko also fails
-                # Try to use common Binance symbols for major coins
+                # Priority 2: Try common Binance symbols for major coins
                 fallback_symbols = {
                     'bitcoin': 'BTCUSDT',
                     'ethereum': 'ETHUSDT',
                     'cardano': 'ADAUSDT',
                     'solana': 'SOLUSDT',
-                    'binancecoin': 'BNBUSDT'
+                    'binancecoin': 'BNBUSDT',
+                    'chainlink': 'LINKUSDT',
+                    'matic-network': 'MATICUSDT',
+                    'tron': 'TRXUSDT',
+                    'cosmos': 'ATOMUSDT',
+                    'lido-dao': 'LDOUSDT',
+                    'render-token': 'RNDRUSDT',
+                    'pancakeswap-token': 'CAKEUSDT',
                 }
                 
                 binance_symbol = fallback_symbols.get(coin_id)
                 if binance_symbol:
-                    logger.debug(f"Final fallback to Binance for {coin_id}")
-                    price_data = self.get_binance_price(binance_symbol)
-                    if price_data and 'price' in price_data:
-                        price = float(price_data['price']) if isinstance(price_data['price'], str) else price_data['price']
-                        result[coin_id] = {
-                            'usd': price,
-                            'usd_24h_change': price_data.get('change_24h', 0),
-                            'usd_24h_vol': price_data.get('volume_24h', 0),
-                            'last_updated': datetime.now().isoformat()
-                        }
+                    coin_data = self._get_coin_data_from_binance(coin_id, binance_symbol)
+                    if coin_data:
+                        result[coin_id] = coin_data
+                        logger.debug(f"✅ {coin_id}: Binance fallback data retrieved")
+                        continue
+                
+                # Priority 3: Use CoinMarketCap if available (better rate limits than CoinGecko)
+                if self.coinmarketcap:
+                    coin_data = self._get_coin_data_from_coinmarketcap(coin_id)
+                    if coin_data:
+                        result[coin_id] = coin_data
+                        logger.debug(f"✅ {coin_id}: CoinMarketCap data retrieved")
+                        continue
+                
+                # Priority 4: Final fallback to CoinGecko (rate limited)
+                logger.debug(f"⚠️ Using CoinGecko fallback for {coin_id}")
+                coin_data = self._get_coin_data_from_coingecko(coin_id)
+                if coin_data:
+                    result[coin_id] = coin_data
+                    logger.debug(f"✅ {coin_id}: CoinGecko fallback data retrieved")
+                    continue
+                
+                logger.warning(f"❌ Failed to get data for {coin_id} from all sources")
                     
             except Exception as e:
                 logger.error(f"Error processing {coin_id}: {e}")
         
-        # Enhance with market cap data from CoinGecko if needed
+        # Enhance with market cap data if we got mostly Binance data
         self._enhance_with_market_caps(result, coin_ids)
         
-        logger.info(f"Retrieved data for {len(result)}/{len(coin_ids)} coins")
+        success_rate = len(result) / len(coin_ids) * 100 if coin_ids else 0
+        logger.info(f"Retrieved data for {len(result)}/{len(coin_ids)} coins ({success_rate:.1f}% success rate)")
         return result
     
     def _create_usdt_data(self) -> Dict:
@@ -290,34 +334,89 @@ class DataFetcher:
         }
     
     def _get_coin_data_from_binance(self, coin_id: str, binance_symbol: str) -> Optional[Dict]:
-        """Get coin data from Binance"""
+        """Get coin data from Binance with data quality validation"""
         try:
             # Get current price
             price_data = self.get_current_price(binance_symbol)
             if not price_data:
+                logger.warning(f"No price data from Binance for {coin_id}")
                 return None
             
-            # Get historical data
-            historical_df = self.get_historical_data(binance_symbol, limit=500)
-            if historical_df is None:
-                logger.warning(f"No historical data for {coin_id}")
-                return None
+            # Get historical data with standard daily intervals
+            historical_df = self.get_historical_data(binance_symbol, interval="1d", limit=1000)
+            
+            # Check if we have sufficient data for proper indicator analysis
+            if historical_df is None or len(historical_df) < self.min_periods:
+                current_periods = len(historical_df) if historical_df is not None else 0
+                logger.info(f"Skipping {coin_id} ({binance_symbol}): Insufficient historical data ({current_periods} < {self.min_periods} periods)")
+                return None  # Skip this token entirely
             
             price = price_data['price']
-            return {
+            result = {
                 'usd': price,
                 'usd_24h_change': price_data.get('change_24h', 0),
                 'usd_24h_vol': price_data.get('volume_24h', 0),
                 'last_updated': datetime.now().isoformat(),
                 'historical': historical_df,
-                # Backward compatibility
                 'price': price,
-                'change_24h': price_data.get('change_24h', 0)
+                'change_24h': price_data.get('change_24h', 0),
+                'source': 'binance',
+                'data_quality': 'sufficient',
+                'periods_available': len(historical_df)
             }
+            
+            return result
             
         except Exception as e:
             logger.error(f"Error getting Binance data for {coin_id}: {e}")
             return None
+
+    def _get_coin_data_from_coinmarketcap(self, coin_id: str) -> Optional[Dict]:
+        """Get coin data from CoinMarketCap as alternative to CoinGecko"""
+        if not self.coinmarketcap:
+            return None
+            
+        try:
+            # Map CoinGecko IDs to CoinMarketCap symbols (common ones)
+            id_mapping = {
+                'bitcoin': 'BTC',
+                'ethereum': 'ETH',
+                'binancecoin': 'BNB',
+                'cardano': 'ADA',
+                'solana': 'SOL',
+                'chainlink': 'LINK',
+                'matic-network': 'MATIC',
+                'tron': 'TRX',
+                'cosmos': 'ATOM',
+                'lido-dao': 'LDO'
+            }
+            
+            cmc_symbol = id_mapping.get(coin_id)
+            if not cmc_symbol:
+                return None
+                
+            params = {
+                'symbol': cmc_symbol,
+                'convert': 'USD'
+            }
+            
+            data = self.coinmarketcap.make_request('cryptocurrency/quotes/latest', params)
+            if data and 'data' in data and cmc_symbol in data['data']:
+                coin_data = data['data'][cmc_symbol]
+                quote = coin_data['quote']['USD']
+                
+                return {
+                    'usd': quote.get('price', 0),
+                    'usd_24h_change': quote.get('percent_change_24h', 0),
+                    'usd_24h_vol': quote.get('volume_24h', 0),
+                    'usd_market_cap': quote.get('market_cap', 0),
+                    'last_updated': quote.get('last_updated', datetime.now().isoformat()),
+                    'source': 'coinmarketcap'
+                }
+        except Exception as e:
+            logger.warning(f"Error getting CoinMarketCap data for {coin_id}: {e}")
+        
+        return None
     
     def _get_coin_data_from_coingecko(self, coin_id: str) -> Optional[Dict]:
         """Get coin data from CoinGecko as fallback"""
@@ -347,41 +446,110 @@ class DataFetcher:
         return None
     
     def _enhance_with_market_caps(self, result: Dict, coin_ids: List[str]) -> None:
-        """Enhance existing data with market cap information from CoinGecko"""
+        """Enhance existing data with market cap information, prioritizing CoinMarketCap"""
         try:
-            # Get market caps for coins that were fetched from Binance
-            binance_coins = [coin_id for coin_id in coin_ids if coin_id in result and 'usd_market_cap' not in result[coin_id]]
+            # Get market caps for coins that were fetched from Binance and need market cap data
+            binance_coins = [coin_id for coin_id in coin_ids 
+                           if coin_id in result and 'usd_market_cap' not in result[coin_id]]
             
             if not binance_coins:
                 return
             
-            params = {
-                'ids': ','.join(binance_coins),
-                'vs_currencies': 'usd',
-                'include_market_cap': 'true',
-                'include_24h_vol': 'false',
-                'include_24h_change': 'false'
-            }
+            enhanced_count = 0
             
-            market_data = self.coingecko.make_request('simple/price', params)
-            if market_data:
-                for coin_id in binance_coins:
-                    if coin_id in market_data and coin_id in result:
-                        result[coin_id]['usd_market_cap'] = market_data[coin_id].get('usd_market_cap', 0)
+            # Priority 1: Try CoinMarketCap first (more reliable for market caps)
+            if self.coinmarketcap:
+                try:
+                    # Map coins to CoinMarketCap symbols
+                    id_mapping = {
+                        'bitcoin': 'BTC', 'ethereum': 'ETH', 'binancecoin': 'BNB',
+                        'cardano': 'ADA', 'solana': 'SOL', 'chainlink': 'LINK',
+                        'matic-network': 'MATIC', 'tron': 'TRX', 'cosmos': 'ATOM',
+                        'lido-dao': 'LDO', 'render-token': 'RNDR', 'pancakeswap-token': 'CAKE'
+                    }
+                    
+                    cmc_symbols = [id_mapping[coin_id] for coin_id in binance_coins 
+                                 if coin_id in id_mapping]
+                    
+                    if cmc_symbols:
+                        params = {
+                            'symbol': ','.join(cmc_symbols),
+                            'convert': 'USD'
+                        }
                         
-            logger.debug(f"Enhanced {len(binance_coins)} coins with market cap data")
+                        market_data = self.coinmarketcap.make_request('cryptocurrency/quotes/latest', params)
+                        if market_data and 'data' in market_data:
+                            for coin_id in binance_coins:
+                                if coin_id in id_mapping:
+                                    symbol = id_mapping[coin_id]
+                                    if symbol in market_data['data']:
+                                        market_cap = market_data['data'][symbol]['quote']['USD'].get('market_cap', 0)
+                                        if market_cap and coin_id in result:
+                                            result[coin_id]['usd_market_cap'] = market_cap
+                                            enhanced_count += 1
+                            
+                            logger.debug(f"Enhanced {enhanced_count} coins with CoinMarketCap market caps")
+                            
+                            # Remove enhanced coins from the list for CoinGecko fallback
+                            binance_coins = [coin_id for coin_id in binance_coins 
+                                           if 'usd_market_cap' not in result.get(coin_id, {})]
+                
+                except Exception as e:
+                    logger.warning(f"CoinMarketCap market cap enhancement failed: {e}")
+            
+            # Priority 2: Fallback to CoinGecko for remaining coins
+            if binance_coins:
+                try:
+                    params = {
+                        'ids': ','.join(binance_coins),
+                        'vs_currencies': 'usd',
+                        'include_market_cap': 'true',
+                        'include_24h_vol': 'false',
+                        'include_24h_change': 'false'
+                    }
+                    
+                    market_data = self.coingecko.make_request('simple/price', params)
+                    if market_data:
+                        cg_enhanced = 0
+                        for coin_id in binance_coins:
+                            if coin_id in market_data and coin_id in result:
+                                market_cap = market_data[coin_id].get('usd_market_cap', 0)
+                                if market_cap:
+                                    result[coin_id]['usd_market_cap'] = market_cap
+                                    cg_enhanced += 1
+                                    
+                        logger.debug(f"Enhanced {cg_enhanced} additional coins with CoinGecko market caps")
+                        enhanced_count += cg_enhanced
+                        
+                except Exception as e:
+                    logger.warning(f"CoinGecko market cap enhancement failed: {e}")
+            
+            if enhanced_count > 0:
+                logger.info(f"Enhanced {enhanced_count} coins with market cap data")
             
         except Exception as e:
             logger.warning(f"Failed to enhance with market caps: {e}")
     
     def get_btc_dominance(self) -> Optional[float]:
         """
-        Get BTC dominance with fallback strategy
+        Get BTC dominance with CoinMarketCap-first strategy
         
         Returns:
             BTC dominance percentage or None if failed
         """
-        # Try CoinGecko first
+        # Priority 1: Try CoinMarketCap first (more reliable, better rate limits)
+        try:
+            if self.coinmarketcap:
+                data = self._make_coinmarketcap_request("global-metrics/quotes/latest")
+                if data and 'data' in data:
+                    dominance = data['data'].get('btc_dominance')
+                    if dominance:
+                        logger.debug(f"BTC Dominance from CoinMarketCap: {dominance:.2f}%")
+                        return float(dominance)
+        except Exception as e:
+            logger.warning(f"CoinMarketCap BTC dominance failed: {e}")
+        
+        # Priority 2: Fallback to CoinGecko
         try:
             data = self._make_coingecko_request("global")
             if data and 'data' in data:
@@ -391,17 +559,6 @@ class DataFetcher:
                     return float(dominance)
         except Exception as e:
             logger.warning(f"CoinGecko BTC dominance failed: {e}")
-        
-        # Fallback to CoinMarketCap
-        try:
-            data = self._make_coinmarketcap_request("global-metrics/quotes/latest")
-            if data and 'data' in data:
-                dominance = data['data'].get('btc_dominance')
-                if dominance:
-                    logger.debug(f"BTC Dominance from CoinMarketCap: {dominance:.2f}%")
-                    return float(dominance)
-        except Exception as e:
-            logger.error(f"CoinMarketCap BTC dominance failed: {e}")
         
         logger.error("Failed to get BTC dominance from all sources")
         return None
