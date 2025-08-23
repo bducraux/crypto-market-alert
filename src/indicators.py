@@ -594,7 +594,7 @@ class TechnicalIndicators:
                     rci_values[f'rci_{period}'] = np.nan
             
             # Analyze RCI signals
-            analysis = self._analyze_rci_signals(rci_values)
+            analysis = self._analyze_rci_3_line_signals(rci_values)
             
             return {
                 'values': rci_values,
@@ -610,7 +610,7 @@ class TechnicalIndicators:
             self.logger.error(f"Error calculating RCI 3-Lines: {e}")
             return {'error': f'RCI calculation failed: {str(e)}'}
 
-    def _analyze_rci_signals(self, rci_values: Dict, overbought: float = 80, oversold: float = -80) -> Dict:
+    def _analyze_rci_3_line_signals(self, rci_values: Dict, overbought: float = 80, oversold: float = -80) -> Dict:
         """
         Analyze RCI signals for market conditions
         
