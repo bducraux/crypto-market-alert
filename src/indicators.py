@@ -292,21 +292,20 @@ class TechnicalIndicators:
                     if series is not None and not series.empty:
                         results[key] = float(series.iloc[-1]) if not pd.isna(series.iloc[-1]) else None
 
-            # Pi Cycle Top Indicator (ONLY for Bitcoin - BTC cycle top detection)
-            if config.get('enable_pi_cycle', False) and coin_symbol and coin_symbol.lower() == 'bitcoin':
-                self.logger.info("Calculating Pi Cycle Top indicator for Bitcoin (market cycle analysis)")
-                pi_cycle_data = self.calculate_pi_cycle_top(df)
-                results.update(pi_cycle_data)
-            elif config.get('enable_pi_cycle', False) and coin_symbol and coin_symbol.lower() != 'bitcoin':
-                self.logger.debug(f"Skipping Pi Cycle Top for {coin_symbol} - indicator is Bitcoin-specific for market cycle detection")
+            # Pi Cycle Top Indicator
+            # Default to calculating when enabled and coin_symbol is not provided (useful for tests or BTC context)
+            if config.get('enable_pi_cycle', False):
+                if not coin_symbol or coin_symbol.lower() == 'bitcoin':
+                    self.logger.info("Calculating Pi Cycle Top indicator")
+                    pi_cycle_data = self.calculate_pi_cycle_top(df)
+                    results.update(pi_cycle_data)
+                else:
+                    self.logger.debug(f"Skipping Pi Cycle Top for {coin_symbol} - indicator is Bitcoin-specific for market cycle detection")
 
             # 3-Line RCI (Rank Correlation Index)
             if config.get('enable_rci', False):
-                rci_data = self.calculate_rci_3lines(df, config.get('rci_periods', [9, 26, 52]))
-                if 'error' not in rci_data:
-                    results['rci_3lines'] = rci_data
-                else:
-                    self.logger.warning(f"RCI calculation failed: {rci_data['error']}")
+                rci_data = self.calculate_rci_3_line(df, config.get('rci_periods', [9, 26, 52]))
+                results.update(rci_data)
 
             # Current price
             if 'close' in df.columns and not df['close'].empty:

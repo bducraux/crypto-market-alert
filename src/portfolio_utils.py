@@ -30,6 +30,7 @@ class PortfolioAnalyzer:
         try:
             total_usd = 0.0
             total_btc_equivalent = 0.0
+            total_eth_equivalent = 0.0
             altcoins_usd = 0.0
             altcoins_btc_equivalent = 0.0
             btc_price = 0.0
@@ -50,21 +51,33 @@ class PortfolioAnalyzer:
                 coin_id = coin_config.get('coingecko_id')
                 coin_name = coin_config.get('name', coin_id)
                 current_amount = coin_config.get('current_amount', 0)
+                avg_price = float(coin_config.get('avg_price', 0) or 0)
                 
                 if coin_id in coin_data and current_amount > 0:
-                    current_price = coin_data[coin_id].get('usd', 0)
+                    current_price = float(coin_data[coin_id].get('usd', 0) or 0)
                     total_value_usd = current_amount * current_price
                     
-                    # Calculate BTC equivalent
-                    btc_equivalent = total_value_usd / btc_price if btc_price > 0 else 0
+                    # Calculate BTC/ETH equivalents
+                    btc_equivalent = (total_value_usd / btc_price) if btc_price > 0 else 0
+                    eth_equivalent = (total_value_usd / eth_price) if eth_price > 0 else 0
+                    
+                    # Gain/Loss relative to avg price
+                    invested_usd = current_amount * avg_price if avg_price > 0 else 0.0
+                    gain_loss_usd = (total_value_usd - invested_usd) if avg_price > 0 else 0.0
+                    gain_loss_pct = ((current_price - avg_price) / avg_price * 100) if avg_price > 0 else 0.0
                     
                     portfolio_items.append({
                         'name': coin_name,
                         'symbol': coin_config.get('symbol', coin_name),
                         'amount': current_amount,
                         'price': current_price,
+                        'avg_price': avg_price,
                         'total_usd': total_value_usd,
-                        'btc_equivalent': btc_equivalent
+                        'invested_usd': invested_usd,
+                        'btc_equivalent': btc_equivalent,
+                        'eth_equivalent': eth_equivalent,
+                        'gain_loss_usd': gain_loss_usd,
+                        'gain_loss_pct': gain_loss_pct
                     })
                     
                     # Track BTC and ETH amounts
@@ -79,6 +92,7 @@ class PortfolioAnalyzer:
                     
                     total_usd += total_value_usd
                     total_btc_equivalent += btc_equivalent
+                    total_eth_equivalent += eth_equivalent
             
             # Sort by total USD value (descending)
             portfolio_items.sort(key=lambda x: x['total_usd'], reverse=True)
@@ -101,6 +115,7 @@ class PortfolioAnalyzer:
                 'totals': {
                     'total_usd': total_usd,
                     'total_btc_equivalent': total_btc_equivalent,
+                    'total_eth_equivalent': total_eth_equivalent,
                     'altcoins_usd': altcoins_usd,
                     'altcoins_btc_equivalent': altcoins_btc_equivalent,
                     'btc_price': btc_price,
@@ -152,7 +167,7 @@ class PortfolioAnalyzer:
                 else:
                     amount_str = f"{item['amount']:.2f}"
                 
-                output.append(f"   {amount_str} {item['name']:<6} -> ${item['total_usd']:>10,.2f} (₿{item['btc_equivalent']:.6f})")
+                output.append(f"   {amount_str} {item['name']:<6} -> ${item['total_usd']:>10,.2f} (₿{item['btc_equivalent']:.6f} | Ξ{item['eth_equivalent']:.6f})")
         
         # Summary
         totals = portfolio_data['totals']
@@ -162,7 +177,8 @@ class PortfolioAnalyzer:
         output.append(f"   Total Altcoins BTC Equivalent: ₿{totals['altcoins_btc_equivalent']:.6f}")
         output.append(f"   Total Portfolio USD Value: ${totals['total_usd']:,.2f}")
         output.append(f"   Total Portfolio BTC Equivalent: ₿{totals['total_btc_equivalent']:.6f}")
-        output.append(f"")
+        output.append(f"   Total Portfolio ETH Equivalent: Ξ{totals['total_eth_equivalent']:.6f}")
+        output.append("")
         output.append(f"   Bitcoin Price: ${totals['btc_price']:,.2f}")
         output.append(f"   Ethereum Price: ${totals['eth_price']:,.2f}")
         
@@ -230,3 +246,43 @@ class PortfolioAnalyzer:
         output.append(f"   ETH: {goals['eth_progress']:.1f}% ({portfolio_data['holdings']['eth_amount']:.1f}/{goals['eth_target']:.0f})")
         
         return "\n".join(output)
+    
+    def format_detailed_for_telegram(self, portfolio_data: Dict) -> str:
+        """Format detailed portfolio table for Telegram (HTML parse mode)."""
+        if 'error' in portfolio_data:
+            return "❌ Falha na análise do portfólio"
+        
+        # Header and table columns
+        lines = []
+        lines.append("🔎 Detailed Portfolio Analysis")
+        lines.append("<pre>")
+        lines.append(f"{'Coin':<8} {'Invested':>14} {'Current':>14} {'Avg Price':>14} {'BTC':>12} {'ETH':>12} {'G/L $ (%)':>16}")
+        lines.append(f"{'-'*8} {'-'*14} {'-'*14} {'-'*14} {'-'*12} {'-'*12} {'-'*16}")
+        
+        # Sort by most profitable (gain/loss USD descending)
+        items = [it for it in portfolio_data['portfolio_items'] if it.get('amount', 0) > 0]
+        items.sort(key=lambda x: x.get('gain_loss_usd', 0.0), reverse=True)
+        
+        for item in items:
+            name = item.get('name', '')
+            invested = item.get('invested_usd', 0.0)
+            current_usd = item.get('total_usd', 0.0)
+            avg = item.get('avg_price', 0.0)
+            btc = item.get('btc_equivalent', 0.0)
+            eth = item.get('eth_equivalent', 0.0)
+            gl_usd = item.get('gain_loss_usd', 0.0)
+            gl_pct = item.get('gain_loss_pct', 0.0)
+            sign = '+' if gl_usd >= 0 else '-'
+            gl_text = f"{sign}${abs(gl_usd):,.2f} ({gl_pct:+.2f}%)"
+            lines.append(
+                f"{name:<8} ${invested:>13,.2f} ${current_usd:>13,.2f} ${avg:>13,.2f} {btc:>12.6f} {eth:>12.6f} {gl_text:>16}"
+            )
+        
+        lines.append("")
+        totals = portfolio_data['totals']
+        lines.append(f"Total USD: ${totals['total_usd']:,.2f}")
+        lines.append(f"Total BTC: ₿{totals['total_btc_equivalent']:.6f}")
+        lines.append(f"Total ETH: Ξ{totals['total_eth_equivalent']:.6f}")
+        lines.append("</pre>")
+        
+        return "\n".join(lines)

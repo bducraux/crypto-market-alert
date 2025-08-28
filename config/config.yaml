@@ -1,15 +1,18 @@
 general:
   check_interval: 300  # 5 minutes between checks
   retry_attempts: 3
-  retry_delay: 2
   # Enhanced data fetching configuration
   historical_data_periods: 500  # Increased for better indicator calculations
-  min_data_periods: 350  # Minimum required for Pi Cycle Top indicator
+  min_data_periods: 350
+  data_points: 100
+  retry_delay: 5  # Minimum required for Pi Cycle Top indicator
   
 alert_cooldown:
   price_alert: 60  # minutes
   indicator_alert: 30  # minutes
-  market_alert: 120  # minutes
+  market_alert: 120
+  market_metric_alert: 120
+  comprehensive_alert: 90  # minutes
 
 market_indicators:
   btc_dominance_threshold: 45.0  # Alert if BTC dominance changes significantly
@@ -78,7 +81,7 @@ coins:
     price_below: 0.5
     rsi_oversold: 25
     rsi_overbought: 75
-  current_amount: 5862
+  current_amount: 5879
 - symbol: cardano
   name: ADA
   coingecko_id: cardano
@@ -122,7 +125,7 @@ coins:
     price_below: 1
     rsi_oversold: 25
     rsi_overbought: 75
-  current_amount: 296.2
+  current_amount: 296.29
 - symbol: tether
   name: USDT
   coingecko_id: tether
@@ -133,7 +136,7 @@ coins:
     price_below: 0.95
     rsi_oversold: 25
     rsi_overbought: 75
-  current_amount: 332.8090718
+  current_amount: 335.64
 - symbol: stacks
   name: STX
   coingecko_id: blockstack
@@ -144,7 +147,7 @@ coins:
     price_below: 1.5
     rsi_oversold: 25
     rsi_overbought: 75
-  current_amount: 357.5
+  current_amount: 358.17
 - symbol: render-token
   name: RNDR
   coingecko_id: render-token
@@ -155,7 +158,7 @@ coins:
     price_below: 5
     rsi_oversold: 25
     rsi_overbought: 75
-  current_amount: 82.37
+  current_amount: 82.43
 - symbol: pancakeswap-token
   name: CAKE
   coingecko_id: pancakeswap-token
@@ -177,7 +180,7 @@ coins:
     price_below: 1.2
     rsi_oversold: 25
     rsi_overbought: 75
-  current_amount: 102
+  current_amount: 117.23
 - symbol: pyth-network
   name: PYTH
   coingecko_id: pyth-network
@@ -188,23 +191,23 @@ coins:
     price_below: 0.4
     rsi_oversold: 25
     rsi_overbought: 75
-  current_amount: 438.5
+  current_amount: 440.84
 - symbol: shiba-inu
   name: SHIB
   coingecko_id: shiba-inu
   binance_id: SHIBUSDT
-  avg_price: 1.0e-05
+  avg_price: 0.00002
   alerts:
     price_above: 2.0e-05
     price_below: 5.0e-06
     rsi_oversold: 25
     rsi_overbought: 75
-  current_amount: 11599531.18
+  current_amount: 11593969.18
 - symbol: chz
   name: CHZ
   coingecko_id: chiliz
   binance_id: CHZUSDT
-  avg_price: 0
+  avg_price: 0.24
   current_amount: 385
   alerts:
     price_above: 0
@@ -229,6 +232,13 @@ indicators:
   macd_fast: 12
   macd_slow: 26
   macd_signal: 9
+  enable_pi_cycle: true
+  pi_cycle_short: 111
+  pi_cycle_long: 350
+  enable_rci: true
+  rci_periods: [ 9, 26, 52]
+  rci_overbought: 80
+  rci_oversold: -80
 market_metrics:
   btc_dominance:
     above: 60.0
@@ -239,17 +249,6 @@ market_metrics:
   fear_greed_index:
     extreme_fear: 20
     extreme_greed: 80
-general:
-  check_interval: 300
-  data_points: 100
-  retry_attempts: 3
-  retry_delay: 5
-alert_cooldown:
-  price_alert: 60
-  indicator_alert: 30
-  market_metric_alert: 120
-  comprehensive_alert: 90  # Alertas profissionais combinados
-  
 # Configurações para alertas profissionais
 professional_alerts:
   enabled: true
@@ -304,26 +303,6 @@ strategic_alerts:
     altcoins_oversold: 3              # 3+ altcoins with RSI < 30
 
 # 🆕 New Technical Indicators Configuration
-indicators:
-  rsi_period: 14                        # RSI padrão
-  ma_short: 50                          # Média móvel curta
-  ma_long: 200                          # Média móvel longa  
-  macd_fast: 12                         # MACD rápido
-  macd_slow: 26                         # MACD lento
-  macd_signal: 9                        # Linha de sinal MACD
-  
-  # 🆕 Pi Cycle Top Indicator (BITCOIN ONLY - Market Cycle Detection)
-  # This indicator is specifically designed for Bitcoin cycle analysis
-  # Used to detect market tops when BTC leads the entire crypto market down
-  enable_pi_cycle: true                 # Enable Pi Cycle Top indicator for Bitcoin only
-  pi_cycle_short: 111                   # Short MA period for Pi Cycle (111-day MA)
-  pi_cycle_long: 350                    # Long MA period for Pi Cycle (350-day MA × 2)
-  
-  # 🆕 3-Line RCI (Rank Correlation Index)
-  enable_rci: true                      # Enable 3-Line RCI
-  rci_periods: [9, 26, 52]             # Short, medium, long-term periods
-  rci_overbought: 80                    # RCI overbought level
-  rci_oversold: -80                     # RCI oversold level
 
 # 🆕 Partial Exit Strategy Configuration
 partial_exit:

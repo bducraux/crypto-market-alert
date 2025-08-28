@@ -57,6 +57,12 @@ Examples:
     )
     
     parser.add_argument(
+        '--portfolio',
+        action='store_true',
+        help='Send a detailed portfolio analysis notification via Telegram'
+    )
+    
+    parser.add_argument(
         '--verbose',
         action='store_true',
         help='Enable verbose logging'
@@ -120,6 +126,26 @@ Examples:
                     return 1
             else:
                 print("❌ Configuration test failed.")
+                return 1
+        
+        elif args.portfolio:
+            print("📬 Sending detailed portfolio analysis to Telegram...")
+            success = alert_system.initialize_components()
+            if success:
+                from src.portfolio_utils import PortfolioAnalyzer
+                coin_data = alert_system.collect_coin_data()
+                analyzer = PortfolioAnalyzer(alert_system)
+                portfolio_data = analyzer.generate_portfolio_report(coin_data, "telegram")
+                message = analyzer.format_detailed_for_telegram(portfolio_data)
+                sent = await alert_system.alerts_orchestrator.telegram.send_message(message, parse_mode='HTML')
+                if sent:
+                    print("✅ Detailed portfolio notification sent!")
+                    return 0
+                else:
+                    print("❌ Failed to send portfolio notification.")
+                    return 1
+            else:
+                print("❌ Configuration initialization failed.")
                 return 1
         
         elif args.once:
