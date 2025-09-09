@@ -71,10 +71,10 @@ coins:
     rsi_oversold: 25
     rsi_overbought: 75
   current_amount: 181.02
-- symbol: matic
-  name: MATIC
-  coingecko_id: matic-network
-  binance_id: MATICUSDT
+- symbol: polygon
+  name: POL
+  coingecko_id: polygon
+  binance_id: POLUSDT
   avg_price: 1.196
   alerts:
     price_above: 1.5
@@ -130,7 +130,7 @@ coins:
   name: USDT
   coingecko_id: tether
   binance_id: USDT
-  avg_price: 1.176
+  avg_price: 1
   alerts:
     price_above: 1.05
     price_below: 0.95
