@@ -143,3 +143,4 @@ config/.env
 .Trashes
 ehthumbs.db
 [Tt]humbs.db
+/data/price_history/

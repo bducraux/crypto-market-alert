@@ -17,6 +17,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from main import CryptoMarketAlertSystem
 from src.portfolio_utils import PortfolioAnalyzer
+from src.price_history import PriceHistoryTracker
 from src.utils import load_environment, get_env_variable
 
 
@@ -36,6 +37,9 @@ class CryptoPortfolioBot:
         self.alert_system = CryptoMarketAlertSystem(config_path)
         self.alert_system.initialize_components()
         
+        # Initialize price history tracker
+        self.price_tracker = PriceHistoryTracker()
+
         # Setup logging
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
@@ -43,6 +47,28 @@ class CryptoPortfolioBot:
         # Bot application
         self.app = None
     
+    def _fetch_coin_data_with_history(self) -> dict:
+        """
+        Fetch coin data and enhance with historical 24h change if needed.
+        Also records current prices for future tracking.
+
+        Returns:
+            Dictionary of coin data enhanced with historical changes
+        """
+        # Fetch current data
+        coin_data = self.alert_system.collect_coin_data()
+
+        if not coin_data:
+            return {}
+
+        # Enhance with historical 24h change where API data is missing
+        coin_data = self.price_tracker.enhance_coin_data_with_history(coin_data)
+
+        # Record current prices for future tracking
+        self.price_tracker.bulk_record_prices(coin_data)
+
+        return coin_data
+
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /start command"""
         welcome_message = (
@@ -78,9 +104,9 @@ class CryptoPortfolioBot:
             
             await update.message.reply_text("📊 Fetching portfolio data...")
             
-            # Collect coin data
-            coin_data = self.alert_system.collect_coin_data()
-            
+            # Collect coin data with historical enhancement
+            coin_data = self._fetch_coin_data_with_history()
+
             if not coin_data:
                 await update.message.reply_text("❌ Failed to fetch coin data. Please try again.")
                 return
@@ -112,7 +138,7 @@ class CryptoPortfolioBot:
                 return
             
             # Collect coin data
-            coin_data = self.alert_system.collect_coin_data()
+            coin_data = self._fetch_coin_data_with_history()
             
             if not coin_data:
                 await update.message.reply_text("❌ Failed to fetch coin data. Please try again.")
@@ -139,7 +165,7 @@ class CryptoPortfolioBot:
                 return
             
             # Collect coin data
-            coin_data = self.alert_system.collect_coin_data()
+            coin_data = self._fetch_coin_data_with_history()
             
             if not coin_data:
                 await update.message.reply_text("❌ Failed to fetch coin data.")
@@ -162,7 +188,7 @@ class CryptoPortfolioBot:
                 return
             
             # Collect coin data
-            coin_data = self.alert_system.collect_coin_data()
+            coin_data = self._fetch_coin_data_with_history()
             
             if not coin_data:
                 await update.message.reply_text("❌ Failed to fetch coin data.")
@@ -187,7 +213,7 @@ class CryptoPortfolioBot:
                 await update.message.reply_text("❌ Unauthorized access")
                 return
             
-            coin_data = self.alert_system.collect_coin_data()
+            coin_data = self._fetch_coin_data_with_history()
             
             if 'bitcoin' not in coin_data:
                 await update.message.reply_text("❌ Failed to fetch Bitcoin data.")
@@ -241,7 +267,7 @@ class CryptoPortfolioBot:
                 await update.message.reply_text("❌ Unauthorized access")
                 return
             
-            coin_data = self.alert_system.collect_coin_data()
+            coin_data = self._fetch_coin_data_with_history()
             
             if 'ethereum' not in coin_data:
                 await update.message.reply_text("❌ Failed to fetch Ethereum data.")

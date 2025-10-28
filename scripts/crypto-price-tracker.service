@@ -1,0 +1,25 @@
+[Unit]
+Description=Crypto Price Tracker Service
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+Group=YOUR_GROUP
+WorkingDirectory=/path/to/crypto-market-alert
+Environment="PATH=/path/to/crypto-market-alert/venv/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/path/to/crypto-market-alert/venv/bin/python /path/to/crypto-market-alert/price_tracker.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=crypto-price-tracker
+
+# Security settings
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
+
