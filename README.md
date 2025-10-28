@@ -61,6 +61,29 @@ crypto-market-alert/
    ./deploy.sh production
    ```
 
+## 🤖 Telegram Bot - Real-Time Portfolio Access
+
+**NEW!** Interactive Telegram bot for on-demand portfolio information:
+
+- 📱 **Commands**: `/portfolio`, `/summary`, `/prices`, `/goals`, `/btc`, `/eth`, `/market`
+- 💰 **Real-time Updates**: Get instant portfolio values in USD, BTC, and ETH
+- 🎯 **Goal Tracking**: Monitor progress toward your 1 BTC + 10 ETH targets
+- 🔒 **Private & Secure**: Only responds to your authorized chat ID
+- ⚡ **Always Available**: Runs as Ubuntu service, responds 24/7
+
+### Quick Setup:
+```bash
+# Interactive setup wizard
+./scripts/setup_bot.sh
+
+# Or install as service directly
+./scripts/install_bot_service.sh
+```
+
+📚 **[Complete Bot Documentation](docs/TELEGRAM_BOT.md)** - Full setup guide and commands
+
+---
+
 ## 🎯 Como Funciona o Sistema
 
 ### **Mensagem Estratégica Consolidada**

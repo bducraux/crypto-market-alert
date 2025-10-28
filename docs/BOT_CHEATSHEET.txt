@@ -1,0 +1,195 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                   🤖 TELEGRAM BOT COMMAND REFERENCE                          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ QUICK COMMANDS                                                               │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ /summary     Quick portfolio snapshot (2-3 sec)                             │
+│ /prices      Current prices with 24h changes (2-3 sec)                      │
+│ /market      Market overview & sentiment (2-3 sec)                          │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ DETAILED COMMANDS                                                            │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ /portfolio   Full report with all coins, P&L, goals (3-5 sec)               │
+│ /goals       Progress toward BTC/ETH targets (2-3 sec)                      │
+│ /btc         Bitcoin details, holdings, P&L (1-2 sec)                       │
+│ /eth         Ethereum details, holdings, P&L (1-2 sec)                      │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ HELP COMMANDS                                                                │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ /start       Welcome message with command list                              │
+│ /help        Show all available commands                                    │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                        SERVICE MANAGEMENT COMMANDS                           ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ BASIC OPERATIONS                                                             │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ sudo systemctl start crypto-bot.service      Start the bot                  │
+│ sudo systemctl stop crypto-bot.service       Stop the bot                   │
+│ sudo systemctl restart crypto-bot.service    Restart (after config change)  │
+│ sudo systemctl status crypto-bot.service     Check if running               │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ LOGS & DEBUGGING                                                             │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ sudo journalctl -u crypto-bot.service -f     Live logs (Ctrl+C to exit)     │
+│ sudo journalctl -u crypto-bot.service -n 50  Last 50 lines                  │
+│ sudo journalctl -u crypto-bot.service --since "10 min ago"                  │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ AUTO-START CONFIGURATION                                                     │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ sudo systemctl enable crypto-bot.service     Enable auto-start on boot      │
+│ sudo systemctl disable crypto-bot.service    Disable auto-start             │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                           SETUP & TESTING COMMANDS                           ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ FIRST TIME SETUP                                                             │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ ./scripts/setup_bot.sh                Interactive setup wizard               │
+│ ./scripts/install_bot_service.sh     Install as systemd service             │
+│ python test_bot.py                    Test configuration                     │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ MANUAL TESTING                                                               │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ python telegram_bot.py                Run bot manually (Ctrl+C to stop)     │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                              USE CASE SCENARIOS                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ MORNING ROUTINE                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ 1. /summary    → Quick portfolio check                                      │
+│ 2. /market     → Market sentiment & phase                                   │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ PRICE ALERT RECEIVED                                                         │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ 1. /prices     → Verify current prices                                      │
+│ 2. /btc        → Check specific coin (if Bitcoin)                           │
+│ 3. /eth        → Check specific coin (if Ethereum)                          │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ BEFORE MAKING A PURCHASE                                                     │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ 1. /goals      → See how much more needed                                   │
+│ 2. /market     → Check market conditions                                    │
+│ 3. /btc or /eth → Check current price vs your avg                           │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ WEEKLY REVIEW                                                                │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ 1. /portfolio  → Full analysis with P&L                                     │
+│ 2. /goals      → Track progress toward targets                              │
+│ 3. /market     → Market context                                             │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                            TROUBLESHOOTING GUIDE                             ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ PROBLEM: Bot not responding                                                 │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ 1. sudo systemctl status crypto-bot.service                                 │
+│ 2. sudo journalctl -u crypto-bot.service -n 50                              │
+│ 3. sudo systemctl restart crypto-bot.service                                │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ PROBLEM: "Unauthorized access" error                                        │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ 1. Get correct Chat ID from @userinfobot                                    │
+│ 2. Edit .env file: nano .env                                                │
+│ 3. Update TELEGRAM_CHAT_ID=your_correct_id                                  │
+│ 4. sudo systemctl restart crypto-bot.service                                │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ PROBLEM: "Failed to fetch data" error                                       │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ 1. Wait 1-2 minutes (API rate limit)                                        │
+│ 2. Try command again                                                         │
+│ 3. Check logs if persistent                                                 │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ PROBLEM: Configuration not updating                                         │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ 1. Edit config/config.yaml                                                  │
+│ 2. Save changes                                                              │
+│ 3. sudo systemctl restart crypto-bot.service                                │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                              QUICK REFERENCE                                 ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+📱 BOT TOKEN:     Get from @BotFather on Telegram
+💬 CHAT ID:       Get from @userinfobot on Telegram
+⚙️  CONFIG FILE:   config/config.yaml (portfolio & goals)
+🔐 CREDENTIALS:   .env file (never commit to git)
+📚 DOCUMENTATION: docs/TELEGRAM_BOT.md
+🚀 QUICKSTART:    TELEGRAM_BOT_QUICKSTART.md
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                           USEFUL FILE LOCATIONS                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+Bot Script:              telegram_bot.py
+Service File:            scripts/crypto-bot.service
+Setup Wizard:            scripts/setup_bot.sh
+Service Installer:       scripts/install_bot_service.sh
+Test Script:             test_bot.py
+Configuration:           config/config.yaml
+Environment Variables:   .env
+Logs:                    sudo journalctl -u crypto-bot.service
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                              SECURITY NOTES                                  ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+✅ Only your Chat ID can use the bot
+✅ All data stays on your local machine
+✅ Bot token in .env (never shared publicly)
+✅ Service runs with your user permissions
+✅ No external database or cloud storage
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                         EMERGENCY QUICK COMMANDS                             ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+Bot not working?          sudo systemctl restart crypto-bot.service
+See what's wrong?         sudo journalctl -u crypto-bot.service -f
+Stop the bot?             sudo systemctl stop crypto-bot.service
+Test configuration?       python test_bot.py
+Edit portfolio?           nano config/config.yaml
+Edit credentials?         nano .env
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    PRINT THIS AND KEEP IT HANDY! 📋                          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+

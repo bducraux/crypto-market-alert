@@ -6,6 +6,8 @@
 ## 🎯 Para Usuários
 - **[COMO_INTERPRETAR_ALERTAS.md](COMO_INTERPRETAR_ALERTAS.md)** - Como interpretar a mensagem estratégica consolidada
 - **[DASHBOARD_GUIDE.md](DASHBOARD_GUIDE.md)** - Guia completo do dashboard estratégico
+- **[TELEGRAM_BOT.md](TELEGRAM_BOT.md)** - 🤖 **NEW!** Bot interativo com comandos para portfolio em tempo real
+- **[BOT_QUICK_REFERENCE.md](BOT_QUICK_REFERENCE.md)** - 📱 Referência rápida dos comandos do bot
 
 ## 🔧 Para Desenvolvedores  
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** - Guidelines para contribuições
@@ -20,6 +22,8 @@
 └── docs/
     ├── COMO_INTERPRETAR_ALERTAS.md   # 📱 Guia da mensagem consolidada  
     ├── DASHBOARD_GUIDE.md            # 📊 Interpretação do dashboard
+    ├── TELEGRAM_BOT.md               # 🤖 Guia completo do bot interativo
+    ├── BOT_QUICK_REFERENCE.md        # 📱 Referência rápida dos comandos
     └── DOC_INDEX.md                  # 📚 Este índice
 ```
 
@@ -34,9 +38,13 @@
 ### **Scripts e Deploy**
 ```
 ├── deploy.sh                     # 🚀 Deploy automático
+├── telegram_bot.py               # 🤖 Bot interativo do Telegram
 ├── scripts/                      
-│   ├── install_service.sh        # 🔧 Instalação do systemd service
-│   └── crypto-alert.service      # ⚙️ Configuração do service
+│   ├── install_service.sh        # 🔧 Instalação do systemd service (alerts)
+│   ├── install_bot_service.sh    # 🤖 Instalação do systemd service (bot)
+│   ├── setup_bot.sh              # 🚀 Setup wizard interativo do bot
+│   ├── crypto-alert.service      # ⚙️ Configuração do service (alerts)
+│   └── crypto-bot.service        # 🤖 Configuração do service (bot)
 ```
 
 ## 🎯 Fluxo de Leitura Recomendado
@@ -45,6 +53,8 @@
 1. [README.md](../README.md) - Entenda o que é o sistema
 2. [COMO_INTERPRETAR_ALERTAS.md](COMO_INTERPRETAR_ALERTAS.md) - Aprenda a interpretar as mensagens
 3. [DASHBOARD_GUIDE.md](DASHBOARD_GUIDE.md) - Domine o dashboard estratégico
+4. [TELEGRAM_BOT.md](TELEGRAM_BOT.md) - 🤖 Configure o bot interativo para acesso em tempo real
+5. [BOT_QUICK_REFERENCE.md](BOT_QUICK_REFERENCE.md) - Referência rápida dos comandos
 
 ### **👨‍💻 Para Desenvolvedores:**
 1. [README.md](../README.md) - Quick start
