@@ -136,6 +136,8 @@ class CryptoPortfolioBot:
             if str(update.effective_chat.id) != self.chat_id:
                 await update.message.reply_text("❌ Unauthorized access")
                 return
+
+            await update.message.reply_text("📊 Fetching summary data...")
             
             # Collect coin data
             coin_data = self._fetch_coin_data_with_history()
@@ -163,7 +165,9 @@ class CryptoPortfolioBot:
             if str(update.effective_chat.id) != self.chat_id:
                 await update.message.reply_text("❌ Unauthorized access")
                 return
-            
+
+            await update.message.reply_text("📊 Fetching prices data...")
+
             # Collect coin data
             coin_data = self._fetch_coin_data_with_history()
             
@@ -186,6 +190,8 @@ class CryptoPortfolioBot:
             if str(update.effective_chat.id) != self.chat_id:
                 await update.message.reply_text("❌ Unauthorized access")
                 return
+
+            await update.message.reply_text("📊 Fetching goals data...")
             
             # Collect coin data
             coin_data = self._fetch_coin_data_with_history()
@@ -212,6 +218,8 @@ class CryptoPortfolioBot:
             if str(update.effective_chat.id) != self.chat_id:
                 await update.message.reply_text("❌ Unauthorized access")
                 return
+
+            await update.message.reply_text("📊 Fetching BTC data...")
             
             coin_data = self._fetch_coin_data_with_history()
             
@@ -266,6 +274,8 @@ class CryptoPortfolioBot:
             if str(update.effective_chat.id) != self.chat_id:
                 await update.message.reply_text("❌ Unauthorized access")
                 return
+
+            await update.message.reply_text("📊 Fetching ETH data...")
             
             coin_data = self._fetch_coin_data_with_history()
             
@@ -320,6 +330,8 @@ class CryptoPortfolioBot:
             if str(update.effective_chat.id) != self.chat_id:
                 await update.message.reply_text("❌ Unauthorized access")
                 return
+
+            await update.message.reply_text("📊 Fetching market data...")
             
             # Collect market data
             market_data = self.alert_system.collect_market_data()
