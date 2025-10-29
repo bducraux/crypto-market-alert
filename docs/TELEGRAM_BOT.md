@@ -137,6 +137,7 @@ strategic_alerts:
   - USD values and BTC/ETH equivalents
   - Profit/Loss for each position
   - Goal progress with visual progress bars
+  - Includes 7-day portfolio value history
   
 - `/summary` - **Quick portfolio snapshot**
   - Total portfolio value
@@ -147,6 +148,13 @@ strategic_alerts:
   - Real-time prices
   - 24-hour change percentage
   - Color-coded indicators (🟢/🔴)
+
+- `/history [period]` - **Portfolio value history table** 🆕
+  - Clean table showing portfolio performance over time
+  - Available periods: `24h`, `3d`, `7d` (default), `30d`
+  - Shows summary stats, key data points, and trends
+  - Example: `/history 24h` or just `/history`
+  - Includes: start/end values, high/low, average, volatility
 
 ### Goal Tracking
 - `/goals` - **Progress toward accumulation targets**

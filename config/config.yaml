@@ -37,7 +37,7 @@ coins:
     price_below: 80000
     rsi_oversold: 30
     rsi_overbought: 70
-  current_amount: 0.54163911
+  current_amount: 0.54483219
 - symbol: ethereum
   name: ETH
   coingecko_id: ethereum
@@ -48,7 +48,7 @@ coins:
     price_below: 2000
     rsi_oversold: 30
     rsi_overbought: 70
-  current_amount: 7.41969135
+  current_amount: 7.65623262
 - symbol: binancecoin
   name: BNB
   coingecko_id: binancecoin

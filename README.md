@@ -11,7 +11,7 @@ Sistema inteligente de monitoramento do mercado cripto com **Strategic Advisor**
 📱 **Telegram Integration** - Alertas instantâneos com análise e ação para cada métrica  
 🔧 **Production Ready** - Systemd service e deploy automatizado  
 
-## 🏗️ Arquitetura Atualizada
+## 🏗️ Arquitetura
 
 ```
 crypto-market-alert/
@@ -65,8 +65,9 @@ crypto-market-alert/
 
 **NEW!** Interactive Telegram bot for on-demand portfolio information:
 
-- 📱 **Commands**: `/portfolio`, `/summary`, `/prices`, `/goals`, `/btc`, `/eth`, `/market`
+- 📱 **Commands**: `/portfolio`, `/summary`, `/prices`, `/goals`, `/btc`, `/eth`, `/market`, `/history`
 - 💰 **Real-time Updates**: Get instant portfolio values in USD, BTC, and ETH
+- 📊 **Portfolio History**: Track portfolio value evolution over 24h, 3d, 7d, or 30d
 - 🎯 **Goal Tracking**: Monitor progress toward your 1 BTC + 10 ETH targets
 - 🔒 **Private & Secure**: Only responds to your authorized chat ID
 - ⚡ **Always Available**: Runs as Ubuntu service, responds 24/7
@@ -80,7 +81,8 @@ crypto-market-alert/
 ./scripts/install_bot_service.sh
 ```
 
-📚 **[Complete Bot Documentation](docs/TELEGRAM_BOT.md)** - Full setup guide and commands
+📚 **Documentation**: 
+- **[Complete Bot Guide](docs/TELEGRAM_BOT.md)** - Full setup and commands
 
 ---
 

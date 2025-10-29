@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "crypto-market-alert"
-version = "1.0.0"
+version = "2.1.0"
 description = "Cryptocurrency market monitoring and alert system"
 authors = [{name = "Crypto Alert System"}]
 license = {text = "MIT"}

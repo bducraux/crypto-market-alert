@@ -75,9 +75,10 @@ class CryptoPortfolioBot:
             "🤖 <b>Crypto Portfolio Bot</b>\n\n"
             "Welcome! I can help you monitor your crypto portfolio in real-time.\n\n"
             "<b>Available Commands:</b>\n"
-            "• /portfolio - Full portfolio report with all coins\n"
+            "• /portfolio - Full portfolio report with 7-day history\n"
             "• /summary - Quick portfolio summary\n"
             "• /prices - Current prices of your coins\n"
+            "• /history [24h|3d|7d|30d] - Portfolio value history\n"
             "• /goals - Progress toward BTC/ETH accumulation goals\n"
             "• /btc - Bitcoin price and your holdings\n"
             "• /eth - Ethereum price and your holdings\n"
@@ -118,6 +119,13 @@ class CryptoPortfolioBot:
             # Send detailed table first
             table_message = analyzer.format_detailed_for_telegram(portfolio_data)
             await update.message.reply_text(table_message, parse_mode='HTML')
+
+            # Send portfolio value evolution table (7 days)
+            portfolio_table = self.price_tracker.generate_portfolio_table(
+                self.alert_system.config.get('coins', []),
+                hours=168  # 7 days
+            )
+            await update.message.reply_text(portfolio_table, parse_mode='HTML')
 
             # Then send summary with goals
             summary_message = self._format_portfolio_summary(portfolio_data)
@@ -381,7 +389,63 @@ class CryptoPortfolioBot:
         except Exception as e:
             self.logger.error(f"Error in market command: {e}")
             await update.message.reply_text(f"❌ Error: {str(e)}")
-    
+
+    async def history_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /history command - portfolio value evolution table"""
+        try:
+            # Check authorization
+            if str(update.effective_chat.id) != self.chat_id:
+                await update.message.reply_text("❌ Unauthorized access")
+                return
+
+            # Parse time period from command argument (default: 7 days)
+            hours = 168  # 7 days default
+            period_name = "7 days"
+
+            if context.args:
+                arg = context.args[0].lower()
+                if arg in ['24h', '1d', 'day']:
+                    hours = 24
+                    period_name = "24 hours"
+                elif arg in ['3d', '3days']:
+                    hours = 72
+                    period_name = "3 days"
+                elif arg in ['7d', '7days', 'week']:
+                    hours = 168
+                    period_name = "7 days"
+                elif arg in ['30d', '30days', 'month']:
+                    hours = 720
+                    period_name = "30 days"
+                else:
+                    await update.message.reply_text(
+                        "📊 <b>Portfolio History Command</b>\n\n"
+                        "View portfolio value evolution over time:\n"
+                        "• <code>/history</code> - 7 days (default)\n"
+                        "• <code>/history 24h</code> - Last 24 hours\n"
+                        "• <code>/history 3d</code> - Last 3 days\n"
+                        "• <code>/history 7d</code> - Last 7 days\n"
+                        "• <code>/history 30d</code> - Last 30 days\n\n"
+                        "Shows performance summary, key metrics, and detailed data points.\n\n"
+                        "💡 Tip: Requires at least 24h of historical data.",
+                        parse_mode='HTML'
+                    )
+                    return
+
+            await update.message.reply_text(f"📊 Generating {period_name} portfolio history...")
+
+            # Generate table
+            portfolio_table = self.price_tracker.generate_portfolio_table(
+                self.alert_system.config.get('coins', []),
+                hours=hours
+            )
+
+            await update.message.reply_text(portfolio_table, parse_mode='HTML')
+            self.logger.info(f"Chart command executed successfully ({period_name})")
+
+        except Exception as e:
+            self.logger.error(f"Error in history command: {e}")
+            await update.message.reply_text(f"❌ Error: {str(e)}")
+
     def _format_detailed_portfolio(self, portfolio_data: dict) -> str:
         """Format detailed portfolio report for Telegram"""
         if 'error' in portfolio_data:
@@ -647,6 +711,7 @@ class CryptoPortfolioBot:
         self.app.add_handler(CommandHandler("portfolio", self.portfolio_command))
         self.app.add_handler(CommandHandler("summary", self.summary_command))
         self.app.add_handler(CommandHandler("prices", self.prices_command))
+        self.app.add_handler(CommandHandler("history", self.history_command))
         self.app.add_handler(CommandHandler("goals", self.goals_command))
         self.app.add_handler(CommandHandler("btc", self.btc_command))
         self.app.add_handler(CommandHandler("eth", self.eth_command))

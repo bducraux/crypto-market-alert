@@ -1,5 +1,45 @@
 # Changelog - Enhanced Features Release
 
+## 🎉 Version 2.1 - Portfolio Value History Tables
+
+**Release Date**: October 29, 2025
+
+### 📊 **New Portfolio History Feature**
+
+#### Portfolio Value Tracking
+- **Purpose**: Track portfolio value evolution over time using historical price data
+- **Data Source**: Local price history stored in `data/price_history/`
+- **Implementation**: `calculate_portfolio_value_history()` and `generate_portfolio_table()` in `src/price_history.py`
+- **Storage**: 30 days of hourly price data per coin
+
+#### Clean Table Visualization
+- **Display**: Professional table format optimized for Telegram
+- **Performance Summary**: Start/end values, change %, high/low, average, volatility
+- **Key Data Points**: Timestamped values with percentage changes
+- **Smart Sampling**: More frequent data points for shorter periods
+- **Indicators**: 📈 for gains, 📉 for losses
+
+#### Telegram Bot Integration
+- **Auto-include**: `/portfolio` command now includes 7-day history automatically
+- **Dedicated Command**: `/history [period]` for custom time periods
+  - `/history 24h` - Last 24 hours
+  - `/history 3d` - Last 3 days
+  - `/history 7d` - Last 7 days (default)
+  - `/history 30d` - Last 30 days
+- **Performance**: < 1 second generation, no API calls needed
+
+#### Documentation
+- **Updated**: README.md and TELEGRAM_BOT.md with history feature info
+- **Updated**: BOT_CHEATSHEET.txt with history command
+
+### 🔧 **Technical Improvements**
+- Efficient portfolio value calculation using existing price history
+- No additional API calls required
+- Automatic data retention (30 days)
+- Graceful handling of missing data
+
+---
+
 ## 🎉 Version 2.0 - Advanced Technical Indicators & Enhanced Exit Strategy
 
 **Release Date**: July 25, 2025

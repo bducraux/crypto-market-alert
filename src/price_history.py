@@ -249,3 +249,186 @@ class PriceHistoryTracker:
         
         return stats
 
+    def calculate_portfolio_value_history(self, portfolio_config: List[Dict], hours: int = 168) -> List[Dict]:
+        """
+        Calculate historical portfolio values based on coin holdings and price history
+
+        Args:
+            portfolio_config: List of coin configurations with coingecko_id and current_amount
+            hours: Number of hours to look back (default: 168 = 7 days)
+
+        Returns:
+            List of dictionaries with timestamp and total_value
+        """
+        try:
+            # Collect all timestamps across all coins
+            all_timestamps = set()
+            coin_histories = {}
+
+            # Load history for each coin in portfolio
+            for coin_config in portfolio_config:
+                coin_id = coin_config.get('coingecko_id')
+                amount = coin_config.get('current_amount', 0)
+
+                if not coin_id or amount <= 0:
+                    continue
+
+                history = self.get_history(coin_id, hours)
+                if history:
+                    coin_histories[coin_id] = {
+                        'amount': amount,
+                        'history': {h['timestamp']: h['price'] for h in history}
+                    }
+                    all_timestamps.update(coin_histories[coin_id]['history'].keys())
+
+            if not all_timestamps:
+                return []
+
+            # Sort timestamps
+            sorted_timestamps = sorted(all_timestamps)
+
+            # Calculate portfolio value at each timestamp
+            portfolio_history = []
+
+            for timestamp in sorted_timestamps:
+                total_value = 0
+                missing_data = False
+
+                # Sum up value of all coins at this timestamp
+                for coin_id, coin_data in coin_histories.items():
+                    price = coin_data['history'].get(timestamp)
+                    if price is not None:
+                        total_value += price * coin_data['amount']
+                    else:
+                        # If we don't have price for this coin at this timestamp, skip this point
+                        missing_data = True
+                        break
+
+                if not missing_data and total_value > 0:
+                    portfolio_history.append({
+                        'timestamp': timestamp,
+                        'total_value': total_value
+                    })
+
+            self.logger.info(f"Calculated portfolio value history: {len(portfolio_history)} data points")
+            return portfolio_history
+
+        except Exception as e:
+            self.logger.error(f"Error calculating portfolio value history: {e}")
+            return []
+
+    def generate_portfolio_table(self, portfolio_config: List[Dict], hours: int = 168) -> str:
+        """
+        Generate a clean table showing portfolio value evolution
+
+        Args:
+            portfolio_config: List of coin configurations
+            hours: Number of hours to display (default: 168 = 7 days)
+
+        Returns:
+            Formatted table string for Telegram
+        """
+        try:
+            history = self.calculate_portfolio_value_history(portfolio_config, hours)
+
+            if not history or len(history) < 2:
+                return "📊 Not enough historical data yet. Portfolio tracking available after 24h."
+
+            values = [h['total_value'] for h in history]
+            min_val = min(values)
+            max_val = max(values)
+            avg_val = sum(values) / len(values)
+
+            # Calculate change
+            first_val = values[0]
+            last_val = values[-1]
+            change_pct = ((last_val - first_val) / first_val) * 100
+            change_usd = last_val - first_val
+            change_emoji = "📈" if change_pct >= 0 else "📉"
+
+            # Time range
+            first_time = datetime.fromisoformat(history[0]['timestamp'])
+            last_time = datetime.fromisoformat(history[-1]['timestamp'])
+
+            # Determine period name
+            if hours <= 24:
+                period_name = "24 Hours"
+            elif hours <= 72:
+                period_name = "3 Days"
+            elif hours <= 168:
+                period_name = "7 Days"
+            else:
+                period_name = "30 Days"
+
+            # Build output
+            output = []
+            output.append(f"{change_emoji} <b>Portfolio Value - Last {period_name}</b>\n")
+
+            # Summary table
+            output.append("<b>📊 Performance Summary:</b>")
+            output.append(f"<b>Start Value</b>    ${first_val:>13,.2f}")
+            output.append(f"<b>End Value</b>      ${last_val:>13,.2f}")
+            output.append(f"<b>Change</b>         {change_pct:>+12.2f}%")
+            output.append(f"<b>Change ($)</b>     ${change_usd:>+12,.2f}")
+            output.append("───────────────────")
+            output.append(f"<b>Highest</b>        ${max_val:>13,.2f}")
+            output.append(f"<b>Lowest</b>         ${min_val:>13,.2f}")
+            output.append(f"<b>Average</b>        ${avg_val:>13,.2f}")
+            output.append(f"<b>Volatility</b>     ${max_val - min_val:>13,.2f}")
+
+            # Sample key data points for detail table
+            samples = []
+            if hours <= 24:
+                # Show every 4 hours for 24h view
+                sample_count = min(7, len(history))
+            elif hours <= 72:
+                # Show every 12 hours for 3 day view
+                sample_count = min(7, len(history))
+            elif hours <= 168:
+                # Show daily for 7 day view
+                sample_count = min(8, len(history))
+            else:
+                # Show every 3-4 days for 30 day view
+                sample_count = min(8, len(history))
+
+            step = max(1, len(history) // sample_count)
+            for i in range(0, len(history), step):
+                samples.append(history[i])
+
+            # Always include the last data point
+            if samples[-1]['timestamp'] != history[-1]['timestamp']:
+                samples.append(history[-1])
+
+            # Detail table
+            output.append(f"\n<b>📅 Key Data Points:</b>")
+            output.append("<pre>")
+            output.append("Date/Time        Value      Change")
+            output.append("───────────────────────────────────")
+
+            for i, sample in enumerate(samples):
+                timestamp = datetime.fromisoformat(sample['timestamp'])
+                value = sample['total_value']
+
+                # Calculate change from previous sample
+                if i > 0:
+                    prev_value = samples[i-1]['total_value']
+                    sample_change = ((value - prev_value) / prev_value) * 100
+                    change_str = f"{sample_change:+6.2f}%"
+                else:
+                    change_str = "  ---  "
+
+                date_str = timestamp.strftime("%m/%d %H:%M")
+                output.append(f"{date_str}  ${value:>10,.0f}  {change_str}")
+
+            output.append("</pre>")
+
+            # Time range footer
+            output.append(f"\n⏰ Period: {first_time.strftime('%Y-%m-%d %H:%M')} to {last_time.strftime('%Y-%m-%d %H:%M')}")
+            output.append(f"📊 Total data points: {len(history)}")
+
+            return "\n".join(output)
+
+        except Exception as e:
+            self.logger.error(f"Error generating portfolio table: {e}")
+            return f"❌ Error generating portfolio summary: {str(e)}"
+
