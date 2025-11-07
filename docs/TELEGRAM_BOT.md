@@ -33,7 +33,7 @@ This Telegram bot provides real-time access to your cryptocurrency portfolio inf
 ### Portfolio Management
 - **Full Portfolio Report**: Complete overview with all holdings, values, and P&L
 - **Quick Summary**: Fast snapshot of total value and main positions
-- **Real-time Prices**: Current prices with 24h changes for all your coins
+- **Real-time Prices**: Current prices with change since last read for all your coins
 - **Goal Progress**: Track accumulation targets for BTC and ETH
 
 ### Individual Coin Information
@@ -146,7 +146,7 @@ strategic_alerts:
   
 - `/prices` - **Current prices of all your coins**
   - Real-time prices
-  - 24-hour change percentage
+  - Change percentage since last read/check
   - Color-coded indicators (🟢/🔴)
 
 - `/history [period]` - **Portfolio value history table** 🆕
@@ -383,6 +383,7 @@ Bot: 💼 PORTFOLIO SUMMARY
 ```
 You: /prices
 Bot: 💵 CURRENT PRICES
+     Change since last read
      
      🟢 BTC: $76,123.45 (+2.34%)
      🟢 ETH: $2,408.67 (+3.12%)

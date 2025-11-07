@@ -75,6 +75,36 @@ class PriceHistoryTracker:
         except Exception as e:
             self.logger.error(f"Error recording price for {coin_id}: {e}")
     
+    def get_last_stored_price(self, coin_id: str) -> Optional[float]:
+        """
+        Get the most recent stored price for a coin
+
+        Args:
+            coin_id: CoinGecko ID of the coin
+
+        Returns:
+            Most recent stored price, or None if not available
+        """
+        try:
+            history_file = self._get_history_file(coin_id)
+
+            if not history_file.exists():
+                return None
+
+            with open(history_file, 'r') as f:
+                history = json.load(f)
+
+            if not history:
+                return None
+
+            # Get the most recent entry (last in the list)
+            last_entry = history[-1]
+            return last_entry['price']
+
+        except Exception as e:
+            self.logger.error(f"Error getting last stored price for {coin_id}: {e}")
+            return None
+
     def get_price_24h_ago(self, coin_id: str) -> Optional[float]:
         """
         Get the price from approximately 24 hours ago
@@ -121,6 +151,25 @@ class PriceHistoryTracker:
             self.logger.error(f"Error getting 24h price for {coin_id}: {e}")
             return None
     
+    def calculate_change_since_last(self, coin_id: str, current_price: float) -> Optional[float]:
+        """
+        Calculate price change percentage since last stored price
+
+        Args:
+            coin_id: CoinGecko ID of the coin
+            current_price: Current price in USD
+
+        Returns:
+            Change percentage since last stored price, or None if not enough data
+        """
+        last_price = self.get_last_stored_price(coin_id)
+
+        if last_price is None or last_price == 0:
+            return None
+
+        change_pct = ((current_price - last_price) / last_price) * 100
+        return change_pct
+
     def calculate_24h_change(self, coin_id: str, current_price: float) -> Optional[float]:
         """
         Calculate 24h price change percentage
@@ -196,6 +245,32 @@ class PriceHistoryTracker:
         self.logger.info(f"Recorded prices for {count} coins")
         return count
     
+    def enhance_coin_data_with_last_stored_change(self, coin_data: Dict[str, Dict]) -> Dict[str, Dict]:
+        """
+        Enhance coin data with change since last stored price
+
+        Args:
+            coin_data: Dictionary mapping coin_id to data dict
+
+        Returns:
+            Enhanced coin data with change since last stored price
+        """
+        for coin_id, data in coin_data.items():
+            current_price = data.get('usd')
+
+            if current_price:
+                change_since_last = self.calculate_change_since_last(coin_id, current_price)
+                if change_since_last is not None:
+                    data['usd_change_since_last'] = change_since_last
+                    data['change_source'] = 'last_stored'
+                    self.logger.debug(f"{coin_id}: Change since last stored: {change_since_last:.2f}%")
+                else:
+                    # First read, no previous data
+                    data['usd_change_since_last'] = 0
+                    data['change_source'] = 'first_read'
+
+        return coin_data
+
     def enhance_coin_data_with_history(self, coin_data: Dict[str, Dict]) -> Dict[str, Dict]:
         """
         Enhance coin data with historical 24h change if API data is missing

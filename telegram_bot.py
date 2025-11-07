@@ -69,6 +69,28 @@ class CryptoPortfolioBot:
 
         return coin_data
 
+    def _fetch_coin_data_for_prices(self) -> dict:
+        """
+        Fetch coin data and calculate change since last stored price.
+        Records current prices AFTER comparison with last stored values.
+
+        Returns:
+            Dictionary of coin data with change since last stored price
+        """
+        # Fetch current data
+        coin_data = self.alert_system.collect_coin_data()
+
+        if not coin_data:
+            return {}
+
+        # Enhance with change since last stored price (before recording new prices)
+        coin_data = self.price_tracker.enhance_coin_data_with_last_stored_change(coin_data)
+
+        # Record current prices for future tracking
+        self.price_tracker.bulk_record_prices(coin_data)
+
+        return coin_data
+
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /start command"""
         welcome_message = (
@@ -167,7 +189,7 @@ class CryptoPortfolioBot:
             await update.message.reply_text(f"❌ Error: {str(e)}")
     
     async def prices_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle /prices command - current prices"""
+        """Handle /prices command - current prices with change since last read"""
         try:
             # Check authorization
             if str(update.effective_chat.id) != self.chat_id:
@@ -176,9 +198,9 @@ class CryptoPortfolioBot:
 
             await update.message.reply_text("📊 Fetching prices data...")
 
-            # Collect coin data
-            coin_data = self._fetch_coin_data_with_history()
-            
+            # Collect coin data with last stored price comparison
+            coin_data = self._fetch_coin_data_for_prices()
+
             if not coin_data:
                 await update.message.reply_text("❌ Failed to fetch coin data.")
                 return
@@ -596,10 +618,11 @@ class CryptoPortfolioBot:
         return "\n".join(output)
     
     def _format_prices(self, coin_data: dict) -> str:
-        """Format current prices"""
+        """Format current prices with change since last stored price"""
         output = []
-        output.append("💵 <b>CURRENT PRICES</b>\n")
-        
+        output.append("💵 <b>CURRENT PRICES</b>")
+        output.append("<i>Change since last read</i>\n")
+
         # Get configured coins
         coins_config = self.alert_system.config.get('coins', [])
         
@@ -613,7 +636,7 @@ class CryptoPortfolioBot:
                 if coin_config:
                     data = coin_data[coin_id]
                     price = data.get('usd', 0)
-                    change = data.get('usd_24h_change', 0)
+                    change = data.get('usd_change_since_last', 0)
                     emoji = "🟢" if change >= 0 else "🔴"
                     
                     output.append(
@@ -627,7 +650,7 @@ class CryptoPortfolioBot:
             if coin_id in coin_data and coin_id not in priority_order:
                 data = coin_data[coin_id]
                 price = data.get('usd', 0)
-                change = data.get('usd_24h_change', 0)
+                change = data.get('usd_change_since_last', 0)
                 emoji = "🟢" if change >= 0 else "🔴"
                 
                 output.append(

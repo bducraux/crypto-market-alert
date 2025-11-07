@@ -6,7 +6,7 @@
 │ QUICK COMMANDS                                                               │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ /summary     Quick portfolio snapshot (2-3 sec)                              │
-│ /prices      Current prices with 24h changes (2-3 sec)                       │
+│ /prices      Current prices with change since last read (2-3 sec)            │
 │ /market      Market overview & sentiment (2-3 sec)                           │
 │ /history [time] Portfolio value history (24h, 3d, 7d, 30d)                   │
 └──────────────────────────────────────────────────────────────────────────────┘

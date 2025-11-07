@@ -256,7 +256,7 @@ pip install -r requirements.txt
 
 **Shows**:
 - Current price for all your coins
-- 24h change %
+- Change % since last read/check
 - Color-coded (🟢 up, 🔴 down)
 
 **Response time**: ~2-3 seconds

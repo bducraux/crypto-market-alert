@@ -7,7 +7,7 @@
 |---------|-------------|---------------|
 | `/portfolio` | Full detailed portfolio report with all coins, P&L, and goals | ~3-5 sec |
 | `/summary` | Quick snapshot of total value and main positions | ~2-3 sec |
-| `/prices` | Current prices of all your coins with 24h changes | ~2-3 sec |
+| `/prices` | Current prices of all your coins with change since last read | ~2-3 sec |
 
 ### 🎯 Goal & Coin Commands
 | Command | Description | Response Time |
@@ -49,8 +49,10 @@
 ```
 
 ### `/prices` - Price Check
+Shows current prices with change since your last price check.
 ```
 💵 CURRENT PRICES
+Change since last read
 
 🟢 BTC: $76,123.45 (+2.34%)
 🟢 ETH: $2,408.67 (+3.12%)

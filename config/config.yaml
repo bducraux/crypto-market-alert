@@ -42,13 +42,13 @@ coins:
   name: ETH
   coingecko_id: ethereum
   binance_id: ETHUSDT
-  avg_price: 354.572
+  avg_price: 495.73
   alerts:
     price_above: 5000
     price_below: 2000
     rsi_oversold: 30
     rsi_overbought: 70
-  current_amount: 7.65623262
+  current_amount: 7.78399135
 - symbol: binancecoin
   name: BNB
   coingecko_id: binancecoin
