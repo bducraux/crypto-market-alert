@@ -37,7 +37,7 @@ coins:
     price_below: 80000
     rsi_oversold: 30
     rsi_overbought: 70
-  current_amount: 0.54483219
+  current_amount: 0.56957672
 - symbol: ethereum
   name: ETH
   coingecko_id: ethereum
